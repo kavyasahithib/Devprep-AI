@@ -24,6 +24,47 @@ const userSchema = new mongoose.Schema({
     default: "user"
   },
 
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+
+  otp: {
+    type: String
+  },
+
+  otpExpires: {
+    type: Date
+  },
+
+  refreshToken: {
+    type: String
+  },
+
+  googleId: {
+    type: String
+  },
+
+  avatar: {
+    type: String
+  },
+
+  resetPasswordToken: {
+    type: String
+  },
+
+  resetPasswordExpires: {
+    type: Date
+  },
+
+  githubToken: {
+    type: String
+  },
+
+  githubUsername: {
+    type: String
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { motion } from 'framer-motion';
+import API from '../services/api';
 import { 
   Trophy, 
   Target, 
@@ -9,7 +8,8 @@ import {
   TrendingUp, 
   BrainCircuit,
   ArrowRight,
-  BookOpen
+  BookOpen,
+  Bug
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -27,16 +27,13 @@ const Dashboard = () => {
       try {
         const token = localStorage.getItem('token');
         const [subRes, dailyRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/submissions/my-submissions', {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get('http://localhost:5000/api/questions/daily')
+          API.get('/submissions/my-submissions'),
+          API.get('/questions/daily')
         ]);
 
         const submissions = subRes.data;
         const accepted = submissions.filter(s => s.status === 'Accepted');
         
-        // Simple accuracy calculation
         const accuracy = submissions.length > 0 
           ? Math.round((accepted.length / submissions.length) * 100) 
           : 0;
@@ -44,7 +41,7 @@ const Dashboard = () => {
         setStats({
           totalSolved: accepted.length,
           accuracy: accuracy,
-          streak: 3, // Placeholder for now
+          streak: 3, 
           recentSubmissions: submissions.slice(0, 5),
           dailyQuestion: dailyRes.data
         });
@@ -58,197 +55,202 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.5, staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 }
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#fdfbf7]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2d5a27]"></div>
+      <div className="flex items-center justify-center h-full bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <motion.div 
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-      className="p-8 max-w-7xl mx-auto space-y-8 bg-[#fdfbf7] min-h-screen font-sans"
-    >
+    <div className="p-8 max-w-7xl mx-auto space-y-8 bg-slate-50 min-h-screen font-sans">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-[#1a2e1a] mb-2 tracking-tighter italic uppercase">Ecosystem Pulse</h1>
-          <p className="text-[#4a5d4a] font-medium italic">Cultivating logic and harvesting intelligence</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Home</h1>
+          <p className="text-slate-500 font-medium">See how much you've learned today!</p>
         </div>
-        <div className="bg-emerald-50 border border-emerald-900/10 px-6 py-3 rounded-2xl flex items-center space-x-3 shadow-sm">
-          <TrendingUp size={18} className="text-[#2d5a27]" />
-          <span className="text-sm font-bold text-[#2d5a27] italic uppercase tracking-tight">+12% growth index</span>
+        <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl flex items-center space-x-2 shadow-sm">
+          <TrendingUp size={16} className="text-indigo-600" />
+          <span className="text-sm font-semibold text-slate-700">Level: Advanced</span>
         </div>
       </div>
 
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Harvested', value: stats.totalSolved, icon: <Trophy className="text-amber-600" />, color: 'amber' },
-          { label: 'Precision', value: `${stats.accuracy}%`, icon: <Target className="text-[#2d5a27]" />, color: 'emerald' },
-          { label: 'Vitality', value: `${stats.streak} days`, icon: <Zap className="text-orange-500" />, color: 'orange' },
-          { label: 'Tier', value: 'Guardian', icon: <TrendingUp className="text-emerald-800" />, color: 'emerald' },
+          { label: 'Finished', value: stats.totalSolved, icon: <Trophy size={20} className="text-amber-500" /> },
+          { label: 'Accuracy', value: `${stats.accuracy}%`, icon: <Target size={20} className="text-indigo-600" /> },
+          { label: 'Day Streak', value: `${stats.streak} Days`, icon: <Zap size={20} className="text-orange-500" /> },
+          { label: 'Global Rank', value: '#1,240', icon: <TrendingUp size={20} className="text-emerald-500" /> },
         ].map((stat, i) => (
-          <motion.div 
-            key={i}
-            variants={itemVariants}
-            className="bg-white border border-emerald-900/10 p-6 rounded-[2rem] hover:border-emerald-900/20 transition-all shadow-sm group"
-          >
+          <div key={i} className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-2xl bg-emerald-50 group-hover:scale-110 transition-transform">
+              <div className="p-2.5 rounded-lg bg-slate-50">
                 {stat.icon}
               </div>
             </div>
-            <div className="text-3xl font-black text-[#1a2e1a] mb-1 tracking-tighter italic">{stat.value}</div>
-            <div className="text-[#a0ba9f] text-[10px] font-bold uppercase tracking-widest italic">{stat.label}</div>
-          </motion.div>
+            <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
+            <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider mt-1">{stat.label}</div>
+          </div>
         ))}
       </div>
 
-      {/* DAILY CHALLENGE */}
+      {/* Daily Challenge */}
       {stats.dailyQuestion && (
-        <motion.div 
-            variants={itemVariants}
-            className="bg-white border border-emerald-900/10 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-8 hover:border-[#2d5a27]/30 transition-all cursor-pointer group shadow-sm relative overflow-hidden"
+        <div 
+            className="bg-indigo-600 p-8 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-8 cursor-pointer group shadow-lg shadow-indigo-200"
             onClick={() => navigate(`/editor/${stats.dailyQuestion._id}`)}
         >
-            <div className="flex items-center space-x-8 relative z-10">
-                <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center border border-emerald-900/10 group-hover:bg-[#2d5a27] group-hover:text-white transition-all shadow-inner">
-                    <Zap size={40} className="text-[#2d5a27] group-hover:text-white" />
+            <div className="flex items-center space-x-6">
+                <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
+                    <Zap size={32} className="text-white" />
                 </div>
                 <div>
-                    <div className="flex items-center space-x-3 mb-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#2d5a27] italic">Symbiotic Challenge</span>
-                        <span className={`text-[10px] font-bold uppercase px-3 py-1 rounded-full ${
-                            stats.dailyQuestion.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-800' :
-                            stats.dailyQuestion.difficulty === 'Medium' ? 'bg-amber-100 text-amber-800' :
-                            'bg-rose-100 text-rose-800'
-                        }`}>
+                    <div className="flex items-center space-x-3 mb-1">
+                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-100">Daily Challenge</span>
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-white/20 text-white">
                             {stats.dailyQuestion.difficulty}
                         </span>
                     </div>
-                    <h2 className="text-2xl font-black text-[#1a2e1a] group-hover:text-[#2d5a27] transition-colors italic uppercase tracking-tight">{stats.dailyQuestion.title}</h2>
-                    <p className="text-[#4a5d4a] text-sm mt-2 max-w-lg line-clamp-2 font-medium italic opacity-80">{stats.dailyQuestion.description}</p>
+                    <h2 className="text-2xl font-bold text-white">{stats.dailyQuestion.title}</h2>
+                    <p className="text-indigo-100/80 text-sm mt-1 max-w-lg line-clamp-1">{stats.dailyQuestion.description}</p>
                 </div>
             </div>
-            <button className="bg-[#2d5a27] hover:bg-[#1f3f1b] text-white font-black py-4 px-10 rounded-2xl transition-all flex items-center space-x-3 group-hover:shadow-xl group-hover:shadow-emerald-900/20 uppercase text-xs tracking-widest italic">
-                <span>Engage Logic</span>
-                <ArrowRight size={20} />
+            <button className="bg-white text-indigo-600 font-bold py-3 px-8 rounded-xl transition-all flex items-center space-x-2 shadow-md hover:bg-indigo-50">
+                <span>Solve Now</span>
+                <ArrowRight size={18} />
             </button>
-        </motion.div>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* AI COACH SECTION */}
-        <motion.div 
-          variants={itemVariants}
-          className="lg:col-span-2 bg-[#f1f4f0] border border-emerald-900/10 p-10 rounded-[2.5rem] relative overflow-hidden shadow-sm"
+      {/* Practice Modes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div 
+            className="bg-white border border-slate-200 p-8 rounded-3xl relative overflow-hidden group cursor-pointer shadow-sm hover:border-indigo-500/50 transition-all"
+            onClick={() => navigate("/interview")}
         >
-          <div className="absolute top-0 right-0 p-10 opacity-[0.03]">
-            <BrainCircuit size={200} className="text-[#2d5a27]" />
+            <div className="relative z-10 space-y-4">
+                <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                    <BrainCircuit size={24} className="text-indigo-600" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-slate-900">Practice Interview</h2>
+                    <p className="text-slate-500 text-sm mt-1">Talk to our AI to practice for interviews.</p>
+                </div>
+                <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm">
+                    <span>Start Practice</span>
+                    <ArrowRight size={16} />
+                </div>
+            </div>
+        </div>
+
+        <div 
+            className="bg-white border border-slate-200 p-8 rounded-3xl relative overflow-hidden group cursor-pointer shadow-sm hover:border-indigo-500/50 transition-all"
+            onClick={() => navigate("/debug")}
+        >
+            <div className="relative z-10 space-y-4">
+                <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center">
+                    <Bug size={24} className="text-slate-900" />
+                </div>
+                <div>
+                    <h2 className="text-xl font-bold text-slate-900">Fix Code Bugs</h2>
+                    <p className="text-slate-500 text-sm mt-1">Find and fix mistakes in broken code.</p>
+                </div>
+                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                    <span>Start Debugging</span>
+                    <ArrowRight size={16} />
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* AI COACH */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 p-8 rounded-3xl shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.05]">
+            <BrainCircuit size={160} className="text-indigo-600" />
           </div>
           
           <div className="relative z-10">
-            <h2 className="text-xl font-bold text-[#1a2e1a] mb-6 flex items-center space-x-3 italic uppercase tracking-tight">
-              <BrainCircuit className="text-[#2d5a27]" />
-              <span>Organic Intelligence Coach</span>
+            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center space-x-2">
+              <BrainCircuit className="text-indigo-600" size={20} />
+              <span>AI Study Buddy</span>
             </h2>
-            <p className="text-[#1a2e1a] text-2xl font-black mb-8 max-w-2xl leading-tight italic tracking-tighter">
-              "You've been mastering **Arrays**! To reach the next level, I recommend focusing on **Dynamic Programming**. It's the key to landing high-tier engineering roles."
+            <p className="text-slate-700 text-xl font-semibold mb-6 max-w-2xl leading-snug">
+              "You've been doing great with **Arrays**! Try focusing on **Dynamic Programming** next to boost your score for top companies."
             </p>
             <div className="flex gap-4">
               <button 
                 onClick={() => navigate('/questions')}
-                className="bg-[#2d5a27] hover:bg-[#1f3f1b] text-white font-black py-4 px-8 rounded-2xl transition-all shadow-lg shadow-emerald-900/20 flex items-center space-x-3 uppercase text-xs tracking-widest italic"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center space-x-2 text-sm"
               >
-                <span>Initiate Sequence</span>
-                <ArrowRight size={20} />
+                <span>View Topics</span>
+                <ArrowRight size={18} />
               </button>
               <button 
                 onClick={() => navigate('/profile')}
-                className="bg-white hover:bg-emerald-50 text-[#2d5a27] font-black py-4 px-8 rounded-2xl transition-all border border-emerald-900/10 uppercase text-xs tracking-widest italic"
+                className="bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all border border-slate-200 text-sm"
               >
-                Neural Audit
+                View Profile
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* RECENT SUBMISSIONS */}
-        <motion.div 
-          variants={itemVariants}
-          className="bg-white border border-emerald-900/10 p-8 rounded-[2.5rem] shadow-sm flex flex-col"
-        >
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="font-extrabold text-[#1a2e1a] uppercase tracking-tighter italic text-lg">Activity Log</h2>
+        {/* RECENT ACTIVITY */}
+        <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-bold text-slate-900">Your Latest Work</h2>
             <button 
                 onClick={() => navigate('/submissions')}
-                className="text-[10px] text-[#2d5a27] font-black hover:underline uppercase tracking-widest italic"
-            >Audit All</button>
+                className="text-xs text-indigo-600 font-bold hover:underline"
+            >See All</button>
           </div>
-          <div className="space-y-4 flex-1">
+          <div className="space-y-3 flex-1">
             {stats.recentSubmissions.length > 0 ? (
                 stats.recentSubmissions.map((sub, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-[#fdfbf7] border border-emerald-900/5 hover:border-emerald-900/20 transition-all group cursor-pointer">
-                        <div className="flex items-center space-x-4">
-                            <div className={`w-3 h-3 rounded-full ${sub.status === 'Accepted' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]'}`}></div>
-                            <span className="text-xs font-black text-[#1a2e1a] italic uppercase tracking-tighter">NODE_{sub._id.slice(-4)}</span>
+                    <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all">
+                        <div className="flex items-center space-x-3">
+                            <div className={`w-2 h-2 rounded-full ${sub.status === 'Accepted' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                            <span className="text-xs font-bold text-slate-700">Submission #{sub._id.slice(-4)}</span>
                         </div>
-                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
-                            sub.status === 'Accepted' ? 'text-emerald-700 bg-emerald-100' : 'text-rose-700 bg-rose-100'
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                            sub.status === 'Accepted' ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
                         }`}>
-                            {sub.status === 'Accepted' ? 'Verified' : 'Fault'}
+                            {sub.status === 'Accepted' ? 'Passed' : 'Failed'}
                         </span>
                     </div>
                 ))
             ) : (
-                <div className="flex-1 flex items-center justify-center text-[#a0ba9f] text-[10px] font-black italic uppercase tracking-widest text-center">
-                    Zero parity found in neural logs
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm text-center">
+                    <p>No recent activity</p>
                 </div>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* TOPICS SECTION */}
-      <motion.div variants={itemVariants} className="space-y-6">
-        <h2 className="text-xl font-bold text-[#1a2e1a] uppercase tracking-tighter italic">Focus Pathways</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {['Arrays', 'Complexity', 'Algorithms', 'Logic'].map((topic, i) => (
+      {/* TOPICS */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-900">Practice Topics</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {['Arrays', 'Strings', 'Dynamic Programming', 'Graphs'].map((topic, i) => (
             <button 
                 key={i}
                 onClick={() => navigate('/questions')}
-                className="flex items-center justify-between p-5 bg-white border border-emerald-900/10 rounded-[2rem] hover:bg-emerald-50/50 hover:border-[#2d5a27]/30 transition-all group text-left shadow-sm"
+                className="flex items-center space-x-3 p-4 bg-white border border-slate-200 rounded-2xl hover:border-indigo-500/50 transition-all text-left shadow-sm group"
             >
-                <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-emerald-50 rounded-2xl group-hover:bg-[#2d5a27] transition-colors shadow-inner">
-                        <BookOpen size={20} className="text-[#2d5a27] group-hover:text-white" />
-                    </div>
-                    <span className="font-extrabold text-[#1a2e1a] group-hover:text-[#2d5a27] uppercase tracking-tight italic text-sm">{topic}</span>
+                <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-indigo-50 transition-colors">
+                    <BookOpen size={18} className="text-slate-600 group-hover:text-indigo-600" />
                 </div>
+                <span className="font-bold text-slate-700 text-sm">{topic}</span>
             </button>
           ))}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 

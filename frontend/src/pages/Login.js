@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Lock, Mail, ArrowRight, Code2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import API from "../services/api";
+import { Lock, Mail, ArrowRight, Loader2, Globe, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -11,52 +11,99 @@ function Login() {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check for tokens in URL (Google OAuth Redirect)
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    const refreshToken = params.get("refreshToken");
+    const authError = params.get("error");
+
+    if (token && refreshToken) {
+      localStorage.setItem("token", token);
+      localStorage.setItem("refreshToken", refreshToken);
+      // We might need an extra API call here to fetch user details if role is needed
+      navigate("/dashboard");
+    }
+
+    if (authError) {
+      setError("Google authentication failed. Please try again.");
+    }
+  }, [location, navigate]);
 
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", { email, password });
+      const res = await API.post("/auth/login", { email, password });
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("refreshToken", res.data.refreshToken);
       localStorage.setItem("role", res.data.user.role);
       navigate("/dashboard");
-    } catch (error) {
-       setError(error.response?.data?.message || "Invalid credentials. Please try again.");
+    } catch (err) {
+      if (err.response?.status === 401 && err.response?.data?.email) {
+          // Redirect to verify if not verified
+          navigate("/verify-otp", { state: { email: err.response.data.email } });
+      } else {
+          setError(err.response?.data?.message || "Invalid credentials. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="h-screen w-full flex items-center justify-center bg-cream relative overflow-hidden font-sans">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-leaf/10 rounded-full blur-[120px]"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-sage/10 rounded-full blur-[120px]"></div>
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:5000/api/auth/google";
+  };
 
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 font-sans p-6">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md px-8 py-10 bg-white/80 backdrop-blur-xl border border-leaf/10 rounded-3xl shadow-2xl relative z-10 mx-4"
+        className="w-full max-w-md p-10 bg-white border border-slate-200 rounded-[2.5rem] shadow-2xl relative overflow-hidden"
       >
+        <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+        
         <div className="flex flex-col items-center mb-10 text-center">
-            <div className="w-14 h-14 bg-leaf rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-leaf/20">
-                <Code2 size={28} className="text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-forest tracking-tighter mb-2">Welcome Back</h1>
-            <p className="text-sage text-[10px] font-bold uppercase tracking-widest italic font-mono">Professional Platform Staging [v1.0.4]</p>
+            <motion.div 
+                whileHover={{ rotate: 15 }}
+                className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-200"
+            >
+                <Lock className="text-white" size={36} />
+            </motion.div>
+            <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Hello Again!</h1>
+            <p className="text-slate-500 font-semibold text-sm uppercase tracking-widest px-2 py-1 bg-slate-100 rounded-lg inline-block">Welcome</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-leaf/60 uppercase ml-1 italic tracking-widest">Entry ID / Email</label>
+        <div className="space-y-4 mb-8">
+            <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-100 py-4 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-95"
+          >
+            <Globe className="text-slate-400" size={20} />
+            <span>Continue with Google</span>
+          </button>
+
+            <div className="flex items-center gap-4 text-slate-300 py-2">
+                <div className="h-px bg-slate-100 flex-1"></div>
+                <span className="text-[10px] font-black uppercase tracking-widest">or with email</span>
+                <div className="h-px bg-slate-100 flex-1"></div>
+            </div>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-leaf/40 group-focus-within:text-leaf transition-colors" size={20} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
                     <input
                         type="email"
-                        placeholder="coder@devprep.ai"
-                        className="w-full bg-cream/50 border border-leaf/20 p-4 pl-12 rounded-2xl text-forest outline-none focus:border-leaf/50 focus:ring-4 focus:ring-leaf/5 transition-all text-sm placeholder-leaf/30"
+                        placeholder="you@engineers.com"
+                        className="w-full bg-slate-50 border-2 border-slate-50 p-4 pl-12 rounded-2xl text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-bold placeholder:font-medium shadow-inner"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -64,14 +111,17 @@ function Login() {
                 </div>
             </div>
 
-            <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-leaf/60 uppercase ml-1 italic tracking-widest">Security Key / Password</label>
+            <div className="space-y-2">
+                <div className="flex justify-between items-end mb-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                    <button type="button" className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Forgot?</button>
+                </div>
                 <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-leaf/40 group-focus-within:text-leaf transition-colors" size={20} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
                     <input
                         type="password"
                         placeholder="••••••••"
-                        className="w-full bg-cream/50 border border-leaf/20 p-4 pl-12 rounded-2xl text-forest outline-none focus:border-leaf/50 focus:ring-4 focus:ring-leaf/5 transition-all text-sm placeholder-leaf/30"
+                        className="w-full bg-slate-50 border-2 border-slate-50 p-4 pl-12 rounded-2xl text-slate-900 outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-bold placeholder:font-medium shadow-inner"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -79,31 +129,38 @@ function Login() {
                 </div>
             </div>
 
-            {error && (
-                <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-sm font-medium italic"
-                >
-                    {error}
-                </motion.div>
-            )}
+            <AnimatePresence>
+                {error && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-bold flex items-center gap-3"
+                    >
+                        <AlertCircle size={18} />
+                        {error}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-leaf hover:bg-leaf-light text-white font-bold h-14 rounded-2xl transition-all shadow-lg shadow-leaf/20 flex items-center justify-center space-x-2 group border border-leaf/20"
+                className="w-full bg-indigo-600 hover:bg-slate-950 text-white font-black h-14 rounded-2xl transition-all shadow-xl shadow-indigo-100 flex items-center justify-center space-x-2 active:scale-95 group"
             >
-                <span className="uppercase tracking-tighter text-sm italic">{loading ? "Authenticating..." : "Establish Session"}</span>
-                {!loading && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
+                {loading ? <Loader2 className="animate-spin" size={24} /> : (
+                    <>
+                        <span>LOG IN</span>
+                        <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                    </>
+                )}
             </button>
         </form>
 
-        <div className="mt-8 text-center">
-            <p className="text-sage text-sm font-medium italic">
-                New to the ecosystem?{" "}
-                <Link to="/signup" className="text-leaf font-bold hover:underline underline-offset-4 decoration-leaf/30">
-                    Register Entity
+        <div className="mt-10 text-center border-t border-slate-50 pt-8">
+            <p className="text-slate-400 text-xs font-bold">
+                NEW HERE?{" "}
+                <Link to="/signup" className="text-indigo-600 font-black hover:text-indigo-800 transition-all uppercase underline underline-offset-4 decoration-2">
+                    Create an Account
                 </Link>
             </p>
         </div>

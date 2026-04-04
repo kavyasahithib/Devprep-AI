@@ -8,9 +8,12 @@ import {
   User,
   LayoutDashboard,
   Code2,
-  Settings
+  Settings,
+  BrainCircuit,
+  Bug,
+  FileSearch,
+  Layout
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -19,15 +22,19 @@ const Sidebar = () => {
   const role = localStorage.getItem('role');
 
   const menuItems = [
-    { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
-    { name: 'Problems', icon: <Code2 size={20} />, path: '/questions' },
-    { name: 'Submissions', icon: <History size={20} />, path: '/submissions' },
+    { name: 'Home', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
+    { name: 'Lessons', icon: <Code2 size={20} />, path: '/questions' },
+    { name: 'Practice Interview', icon: <BrainCircuit size={20} />, path: '/interview' }, 
+    { name: 'Fix Code Bugs', icon: <Bug size={20} />, path: '/debug' },
+    { name: 'Learn Code', icon: <FileSearch size={20} />, path: '/explain' },
+    { name: 'Design Apps', icon: <Layout size={20} />, path: '/system-design' },
+    { name: 'My Work', icon: <History size={20} />, path: '/submissions' },
     { name: 'Leaderboard', icon: <Trophy size={20} />, path: '/leaderboard' },
     { name: 'Profile', icon: <User size={20} />, path: '/profile' },
   ];
 
   if (role === 'admin') {
-    menuItems.push({ name: 'Admin', icon: <Settings size={20} />, path: '/admin' });
+    menuItems.push({ name: 'Admin Panel', icon: <Settings size={20} />, path: '/admin' });
   }
 
   const logout = () => {
@@ -36,60 +43,50 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-72 h-screen bg-[#fdfbf7] border-r border-emerald-900/10 flex flex-col hidden md:flex sticky top-0 shadow-sm">
-      <div className="p-8 flex items-center space-x-3 group cursor-pointer" onClick={() => navigate('/dashboard')}>
-        <div className="w-10 h-10 bg-[#2d5a27] rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20 group-hover:bg-[#1f3f1b] transition-all duration-300">
+    <div className="w-64 h-screen bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex sticky top-0 shadow-lg">
+      <div className="p-6 flex items-center space-x-3 group cursor-pointer" onClick={() => navigate('/dashboard')}>
+        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:bg-indigo-500 transition-all duration-300">
           <Code2 className="text-white" size={24} />
         </div>
         <div className="flex flex-col">
-            <span className="text-xl font-bold text-[#1a2e1a] tracking-tighter leading-tight group-hover:text-[#2d5a27] transition-colors uppercase">DevPrep AI</span>
-            <span className="text-[10px] font-bold text-[#4a7c44] uppercase tracking-widest italic">Core Ecosystem</span>
+            <span className="text-lg font-bold text-white tracking-tight">DevPrep AI</span>
+            <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Mastery Platform</span>
         </div>
       </div>
 
-      <nav className="flex-1 px-6 py-4 space-y-1.5">
-        <div className="text-[10px] font-bold text-[#a0ba9f] uppercase tracking-widest mb-4 ml-2 italic">Neural Pathways</div>
+      <nav className="flex-1 px-4 py-4 space-y-1">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4 ml-4">Main Menu</div>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <button
               key={item.name}
               onClick={() => navigate(item.path)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 group relative ${
                 isActive 
-                  ? 'bg-emerald-50 text-[#2d5a27] border border-emerald-900/10 shadow-sm' 
-                  : 'text-[#4a5d4a] hover:bg-emerald-50/40 hover:text-[#2d5a27]'
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}
             >
-              {isActive && <motion.div layoutId="sidebar-active" className="absolute left-0 w-1 h-6 bg-[#2d5a27] rounded-full" />}
-              <div className="flex items-center space-x-4">
-                <div className={`${isActive ? 'text-[#2d5a27]' : 'text-[#a0ba9f] group-hover:text-[#2d5a27]'} transition-colors`}>
+              <div className="flex items-center space-x-3">
+                <div className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'} transition-colors`}>
                     {item.icon}
                 </div>
-                <span className="font-bold text-sm tracking-tight">{item.name}</span>
+                <span className="font-medium text-sm">{item.name}</span>
               </div>
-              {isActive && <ChevronRight size={16} className="text-[#2d5a27]/30" />}
+              {isActive && <ChevronRight size={14} className="text-white/50" />}
             </button>
           );
         })}
       </nav>
 
-      <div className="p-6 border-t border-emerald-900/5 bg-emerald-50/10">
-        <div className="bg-white border border-emerald-900/10 p-4 rounded-2xl mb-4 group cursor-pointer hover:border-emerald-900/20 transition-all shadow-sm">
-            <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-800 flex items-center justify-center border border-emerald-700/20 font-bold text-white text-xs italic">AI</div>
-                <div>
-                    <div className="text-[10px] font-bold text-[#a0ba9f] uppercase tracking-tighter">Growth Engine</div>
-                    <div className="text-xs font-bold text-[#2d5a27] italic">Symbiotic Sync</div>
-                </div>
-            </div>
-        </div>
+      <div className="p-4 border-t border-slate-800">
         <button
           onClick={logout}
-          className="w-full flex items-center space-x-3 px-4 py-3 text-[#4a5d4a] hover:text-rose-700 hover:bg-rose-50/50 rounded-2xl transition-all duration-300 font-bold text-sm mt-2"
+          className="w-full flex items-center space-x-3 px-4 py-2.5 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all duration-200 font-medium text-sm"
         >
-          <LogOut size={20} />
-          <span>Detach</span>
+          <LogOut size={18} />
+          <span>Logout</span>
         </button>
       </div>
     </div>
@@ -97,3 +94,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+

@@ -17,6 +17,9 @@ const questionSchema = new mongoose.Schema({
     enum: ["Easy", "Medium", "Hard"],
     default: "Easy"
   },
+  tags: [String],
+  companies: [String],
+
 
   // Expected function name for validation
   functionName: {

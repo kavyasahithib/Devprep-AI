@@ -7,7 +7,8 @@ const {
   deleteQuestion,
   getQuestionById,
   updateQuestion,
-  getDailyQuestion
+  getDailyQuestion,
+  getQuestionsByCompany
 } = require("../controllers/questionController");
 
 // 🔐 Import middlewares
@@ -18,7 +19,9 @@ const admin = require("../middleware/admin");
 // ================= PUBLIC ROUTES =================
 router.get("/", getQuestions);
 router.get("/daily", getDailyQuestion);
+router.get("/company/:company", getQuestionsByCompany);
 router.get("/:id", getQuestionById);
+
 
 
 // ================= ADMIN ROUTES =================

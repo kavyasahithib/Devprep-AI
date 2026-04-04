@@ -4,12 +4,14 @@
 
 @layer base {
   html, body, #root {
-    background-color: #fdfbf7; /* Cream Nature Base */
-    @apply h-full min-h-screen text-[#1a2e1a];
+    background-color: #F8FAFC; /* Slate 50 */
+    @apply h-full min-h-screen text-slate-900;
     margin: 0;
     padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
+
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -17,16 +19,16 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f4f0;
+  background: #FAECB6;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #4a7c44;
+  background: #2BBAA5;
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #2d5a27;
+  background: #93D3AE;
 }
 
 @keyframes fadeIn {

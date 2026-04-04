@@ -2,6 +2,7 @@ const Submission = require("../models/Submission");
 const Question = require("../models/Question");
 const { runCode } = require("../services/codeRunner");
 const { reviewCode, generateExplanation, analyzeComplexity } = require("../services/aiService");
+const { checkPlagiarism } = require("../services/securityService");
 
 
 // ================= STRIP TYPESCRIPT SYNTAX =================
@@ -180,12 +181,16 @@ exports.submitCode = async (req, res) => {
 
     }
 
+    // NEW: Plagiarism Check
+    const plagResult = await checkPlagiarism(req.user.id, questionId, code);
+
     const submission = new Submission({
       userId: req.user.id,
       questionId,
       code,
       language,
-      status: finalStatus
+      status: finalStatus,
+      plagiarismScore: plagResult.score
     });
 
     await submission.save();
@@ -302,13 +307,13 @@ exports.generateExplanation = async (req, res) => {
   try {
 
     const { code, questionId, language } = req.body;
-
-    const question = await Question.findById(questionId);
+    let question = null;
+    if (questionId && questionId.match(/^[0-9a-fA-F]{24}$/)) {
+      question = await Question.findById(questionId);
+    }
 
     if (!question) {
-      return res.status(404).json({
-        message: "Question not found"
-      });
+      question = { title: "Custom Code Segment", description: "General technical logic provided by user." };
     }
 
     const explanation = await generateExplanation(code, question, language);
@@ -369,3 +374,66 @@ exports.getSolvedQuestions = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ================= SYNC TO GITHUB =================
+exports.syncSubmissionToGithub = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const submission = await Submission.findById(submissionId).populate("questionId");
+    const User = require("../models/User");
+    const user = await User.findById(req.user.id);
+
+    if (!submission || !user) {
+      return res.status(404).json({ message: "Submission or User not found" });
+    }
+
+    if (!user.githubToken) {
+      return res.status(400).json({ message: "GitHub not connected. Please connect in Profile." });
+    }
+
+    const { syncToGithub } = require("../services/githubService");
+    const repoUrl = await syncToGithub(user, submission, submission.questionId);
+
+    submission.githubSynced = true;
+    submission.githubRepoUrl = repoUrl;
+    await submission.save();
+
+    res.json({ message: "Successfully synced to GitHub!", repoUrl });
+
+  } catch (error) {
+    console.error("Sync Error:", error.message);
+    res.status(500).json({ message: error.message || "Failed to sync to GitHub" });
+  }
+};
+
+// ================= GET SUBMISSION ACTIVITY (HEATMAP) =================
+exports.getSubmissionActivity = async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    const activity = await Submission.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(req.user.id),
+          createdAt: { $gte: oneYearAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json(activity);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+

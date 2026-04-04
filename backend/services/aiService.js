@@ -2,44 +2,65 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const key = (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "").trim();
+// Use the default API version (v1beta for now, which includes latest stable and experimental models)
 const genAI = new GoogleGenerativeAI(key);
 
-// Helper to get-model with fallback logic
-const getModel = (modelName = 'gemini-2.5-flash') => {
-  return genAI.getGenerativeModel({ model: modelName });
-};
+// Robust models that are often available on standard keys
+const FALLBACK_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite-001',
+  'gemini-2.0-flash-lite',
+  'gemini-flash-latest',
+  'gemini-pro-latest'
+];
 
-// Common models to try if the default one fails - Updated based on diagnostic
-const FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-pro-latest'];
+/**
+ * Helper to sleep allowing quotas to cool down briefly if needed
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function generateWithFallback(prompt, defaultModel = 'gemini-2.5-flash') {
+/**
+ * Robust AI generation with model fallback
+ */
+const generateWithFallback = async (prompt, defaultModel = 'gemini-2.5-flash') => {
   let lastError = null;
-  
-  // Try models in order
   const modelsToTry = [defaultModel, ...FALLBACK_MODELS.filter(m => m !== defaultModel)];
   
-  for (const modelName of modelsToTry) {
+  console.log(`AI Request initiated. Prompt length: ${prompt.length}`);
+  
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const modelName = modelsToTry[i];
     try {
-      console.log(`Attempting to use model: ${modelName} (with 60s timeout)`);
-      // Setting a generous timeout for potentially slow connections
-      const model = genAI.getGenerativeModel({ model: modelName }, { timeout: 60000 });
+      console.log(`Attempting model: ${modelName}...`);
+      const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      return response.text().trim();
+      const text = response.text();
+      
+      if (!text) throw new Error("Empty response from AI");
+      
+      console.log(`Success with model: ${modelName}`);
+      return text.trim();
     } catch (error) {
-      console.error(`Model ${modelName} failed:`, error.message);
+      console.error(`ERROR with model ${modelName}:`, error.message);
       lastError = error;
-      // If it's a 404, we definitely want to try the next model
-      if (error.message.includes('404') || error.message.includes('not found')) {
-        continue;
+      // If we hit a 429 quota error, apply a small backoff before trying the next model
+      if (error.message.includes('429') || error.message.includes('quota')) {
+        await sleep(1500); // 1.5s delay to prevent spamming generic 429s
       }
-      // For other errors (like auth), we might want to stop early, but for now let's try all
-      continue;
     }
   }
   
-  throw lastError || new Error('All models failed to generate content');
-}
+  console.error("All AI models failed. Last error:", lastError?.message);
+  // Instead of throwing and crashing requests, return a generic unavailable message
+  // that can be gracefully parsed/displayed by the caller.
+  const reason = lastError?.message || "Unknown error";
+  return `AI Service is temporarily unavailable due to high traffic or quota limits. Please try again later. (Error: ${reason})`;
+};
+
+exports.generateWithFallback = generateWithFallback;
 
 exports.generateHints = async (question) => {
   try {
@@ -86,7 +107,9 @@ ${code}
 Provide:
 1. Mistakes or issues found
 2. Suggestions for improvement (time/space optimization)
-3. Overall feedback
+3. Language-Specific Tips: Provide deep-dive optimization tips for ${language} (e.g., JVM tuning for Java, GIL considerations for Python, memory management for C++).
+4. Overall feedback
+
 
 Be constructive and helpful. Keep it concise.`;
 

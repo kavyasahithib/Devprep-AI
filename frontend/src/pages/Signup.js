@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Lock, Mail, User, ArrowRight, Code2 } from "lucide-react";
+import API from "../services/api";
+import { motion, AnimatePresence } from "framer-motion";
+import { Mail, Lock, User, ArrowRight, Loader2, Sparkles, AlertCircle as Shield } from "lucide-react";
 
 function Signup() {
   const [name, setName] = useState("");
@@ -10,134 +10,190 @@ function Signup() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     setLoading(true);
     setError("");
+
     try {
-      await axios.post("http://localhost:5000/api/auth/signup", { name, email, password });
-      setSuccess(true);
-      setTimeout(() => navigate("/"), 2000);
-    } catch (error) {
-       setError(error.response?.data?.message || "Registration failed. Please try again.");
+      await API.post("/auth/signup", {
+        name,
+        email,
+        password,
+      });
+      // Redirect to OTP verification
+      navigate("/verify-otp", { state: { email } });
+    } catch (err) {
+      setError(err.response?.data?.message || "Signup failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-cream relative overflow-hidden font-sans">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-leaf/10 rounded-full blur-[120px]"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-sage/10 rounded-full blur-[120px]"></div>
-
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md px-8 py-10 bg-white/80 backdrop-blur-xl border border-leaf/10 rounded-3xl shadow-2xl relative z-10 mx-4"
-      >
-        <div className="flex flex-col items-center mb-10 text-center">
-            <div className="w-14 h-14 bg-leaf rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-leaf/20">
-                <Code2 size={28} className="text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-forest tracking-tighter mb-2">Initialize Account</h1>
-            <p className="text-sage text-[10px] font-bold uppercase tracking-widest italic font-mono">Quantum Intelligence Interface [v1.0.4]</p>
+    <div className="min-h-screen flex bg-white font-sans overflow-hidden">
+      {/* Left side: branding/visuals */}
+      <div className="hidden lg:flex w-[45%] bg-slate-950 text-white flex-col justify-between p-16 relative overflow-hidden">
+        {/* Animated Background Mesh */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-30">
+            <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-indigo-600 rounded-full blur-[120px] animate-pulse"></div>
+            <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] bg-emerald-600 rounded-full blur-[120px] animate-pulse delay-700"></div>
         </div>
 
-        {success ? (
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center space-y-4 py-10"
-            >
-                <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ArrowRight size={32} />
-                </div>
-                <h2 className="text-xl font-bold text-forest">Registry Updated!</h2>
-                <p className="text-sage text-[10px] font-bold uppercase tracking-widest italic">Transitioning to security verification...</p>
-            </motion.div>
-        ) : (
-            <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-leaf/60 uppercase ml-1 italic tracking-widest">Formal Identity / Name</label>
-                    <div className="relative group">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-leaf/40 group-focus-within:text-leaf transition-colors" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Alex Coder"
-                            className="w-full bg-cream/50 border border-leaf/20 p-4 pl-12 rounded-2xl text-forest outline-none focus:border-leaf/50 focus:ring-4 focus:ring-leaf/5 transition-all text-sm placeholder-leaf/30"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
-                    </div>
-                </div>
+        <div className="relative z-10 flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/40">
+                <Sparkles className="text-white" size={24} />
+            </div>
+            <span className="text-xl font-black tracking-tighter uppercase">DevPrep AI</span>
+        </div>
 
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-leaf/60 uppercase ml-1 italic tracking-widest">Entry ID / Email</label>
-                    <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-leaf/40 group-focus-within:text-leaf transition-colors" size={20} />
-                        <input
-                            type="email"
-                            placeholder="alex@devprep.ai"
-                            className="w-full bg-cream/50 border border-leaf/20 p-4 pl-12 rounded-2xl text-forest outline-none focus:border-leaf/50 focus:ring-4 focus:ring-leaf/5 transition-all text-sm placeholder-leaf/30"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                    </div>
-                </div>
+        <div className="relative z-10">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h1 className="text-6xl font-black mb-8 leading-[1.1] tracking-tighter">
+                Engineer Your <br/>
+                <span className="text-indigo-500">Perfect Career</span>
+            </h1>
+            <p className="text-slate-400 text-lg mb-12 leading-relaxed font-semibold max-w-md">
+                Elite-tier technical preparation with real-time AI logic analysis and senior-level interview simulations.
+            </p>
+          </motion.div>
 
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-leaf/60 uppercase ml-1 italic tracking-widest">Security Key / Password</label>
-                    <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-leaf/40 group-focus-within:text-leaf transition-colors" size={20} />
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            className="w-full bg-cream/50 border border-leaf/20 p-4 pl-12 rounded-2xl text-forest outline-none focus:border-leaf/50 focus:ring-4 focus:ring-leaf/5 transition-all text-sm placeholder-leaf/30"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
+          <div className="space-y-6">
+            {[
+                { title: "Deep Trace Logic", desc: "AI that explains *why* your approach fails, not just how.", color: "bg-indigo-500" },
+                { title: "Global Sync", desc: "Auto-sync accepted solutions to your GitHub portfolio.", color: "bg-emerald-500" },
+                { title: "Senior Agents", desc: "Mock interviews with AI optimized for Tier-1 companies.", color: "bg-amber-500" }
+            ].map((item, i) => (
+                <motion.div 
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 + (i * 0.1) }}
+                    className="flex items-center gap-4 bg-white/5 border border-white/10 p-5 rounded-3xl backdrop-blur-sm"
+                >
+                    <div className={`w-3 h-3 rounded-full ${item.color} shadow-lg shadow-${item.color}/50`}></div>
+                    <div>
+                        <h4 className="font-bold text-sm">{item.title}</h4>
+                        <p className="text-slate-500 text-xs font-bold leading-relaxed">{item.desc}</p>
                     </div>
-                </div>
+                </motion.div>
+            ))}
+          </div>
+        </div>
 
+        <div className="relative z-10 flex justify-between items-center text-slate-500 font-bold text-xs uppercase tracking-[0.2em]">
+            <span>&copy; 2026 Platform</span>
+            <div className="flex gap-4">
+                <span>Terms</span>
+                <span>Privacy</span>
+            </div>
+        </div>
+      </div>
+
+      {/* Right side: form */}
+      <div className="flex w-full lg:w-[55%] items-center justify-center p-8 bg-slate-50">
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-lg bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100"
+        >
+          <div className="mb-10 text-center lg:text-left">
+            <h2 className="text-4xl font-black text-slate-900 mb-3 tracking-tighter">Create Your Account</h2>
+            <p className="text-slate-500 font-bold text-sm tracking-wide">
+              Get started with your learning journey.
+            </p>
+          </div>
+
+          <form onSubmit={handleSignup} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Your Name</label>
+                <div className="relative group">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all shadow-inner"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={20} />
+                  <input
+                    type="email"
+                    placeholder="john@example.com"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all shadow-inner"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-600 transition-colors" size={20} />
+                    <input
+                        type="password"
+                        placeholder="••••••••"
+                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none text-sm font-bold transition-all shadow-inner"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                </div>
+            </div>
+
+            <AnimatePresence>
                 {error && (
                     <motion.div 
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-sm font-medium italic"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-black flex items-center gap-3"
                     >
+                        <Shield size={18} />
                         {error}
                     </motion.div>
                 )}
+            </AnimatePresence>
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-leaf hover:bg-leaf-light text-white font-bold h-14 rounded-2xl transition-all shadow-lg shadow-leaf/20 flex items-center justify-center space-x-2 group border border-leaf/20"
-                >
-                    <span className="uppercase tracking-tighter text-sm italic">{loading ? "Establishing..." : "Initialize Profile"}</span>
-                    {!loading && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
-                </button>
-            </form>
-        )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-slate-950 text-white py-5 rounded-[1.5rem] font-black shadow-xl shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-3 group mt-4 overflow-hidden relative"
+            >
+              {loading ? <Loader2 className="animate-spin" size={24} /> : (
+                  <>
+                    <span className="relative z-10 uppercase tracking-widest">Create My Account</span>
+                    <ArrowRight className="relative z-10 group-hover:translate-x-1 transition-transform" size={20} />
+                  </>
+              )}
+            </button>
+          </form>
 
-        <div className="mt-8 text-center">
-            <p className="text-sage text-sm font-medium italic">
-                Already have an identity?{" "}
-                <Link to="/" className="text-leaf font-bold hover:underline underline-offset-4 decoration-leaf/30">
-                    Secure Login
-                </Link>
-            </p>
-        </div>
-      </motion.div>
+          <p className="text-xs text-slate-400 mt-10 text-center font-bold font-mono">
+            ALREADY HAVE AN ACCOUNT?{" "}
+            <Link to="/" className="text-indigo-600 hover:text-indigo-800 transition-all uppercase underline underline-offset-4 decoration-2">
+              Log In
+            </Link>
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 }

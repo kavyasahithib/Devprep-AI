@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   LayoutGrid
 } from "lucide-react";
-import { motion } from "framer-motion";
+
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -17,90 +17,82 @@ function AdminDashboard() {
   const adminActions = [
     {
       title: "Add Question",
-      desc: "Architect new algorithmic challenges for the community.",
-      icon: <Plus size={24} className="text-leaf" />,
-      path: "/admin/add",
-      color: "leaf"
+      desc: "Create new coding challenges for the platform.",
+      icon: <Plus size={24} className="text-indigo-600" />,
+      path: "/admin/add"
     },
     {
-      title: "Manage Bank",
-      desc: "Refusal, update, or deprecate existing core problems.",
-      icon: <Database size={24} className="text-leaf-light" />,
-      path: "/questions",
-      color: "sage"
+      title: "Manage Content",
+      desc: "Update or remove existing coding problems.",
+      icon: <Database size={24} className="text-indigo-600" />,
+      path: "/questions"
     },
     {
-      title: "User Management",
-      desc: "Audit user roles and manage platform access control.",
-      icon: <Users size={24} className="text-forest" />,
-      path: "/admin/users",
-      color: "forest"
+      title: "Manage Users",
+      desc: "See who is using the site and change their access.",
+      icon: <Users size={24} className="text-indigo-600" />,
+      path: "/admin/users"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-cream text-forest p-8 font-sans">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-6xl mx-auto"
-      >
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 font-sans">
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-12">
-            <div className="w-12 h-12 bg-leaf rounded-2xl flex items-center justify-center shadow-lg shadow-leaf/20">
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <ShieldCheck className="text-white" size={28} />
             </div>
             <div>
-                <h1 className="text-4xl font-black text-forest tracking-tighter italic uppercase">Admin Command Center</h1>
-                <p className="text-sage text-[10px] font-bold uppercase tracking-widest italic font-mono">Quantum Intelligence Governance [v1.0.4]</p>
+                <h1 className="text-4xl font-bold text-slate-900 mb-1">Admin Panel</h1>
+                <p className="text-slate-500 font-medium">Site settings and lessons.</p>
             </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {adminActions.map((action, i) => (
-            <motion.div
+            <div
               key={i}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="bg-white border border-leaf/10 rounded-3xl p-8 cursor-pointer hover:border-leaf/30 hover:bg-cream/50 transition-all group relative overflow-hidden flex flex-col justify-between h-full shadow-xl"
+              className="bg-white border border-slate-200 rounded-3xl p-8 cursor-pointer hover:border-indigo-400 transition-all group flex flex-col justify-between h-full shadow-sm"
               onClick={() => navigate(action.path)}
             >
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-leaf/5 rounded-full group-hover:bg-leaf/10 transition-colors"></div>
-              
               <div>
-                <div className="mb-6 bg-cream w-14 h-14 rounded-2xl border border-leaf/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                <div className="mb-6 bg-slate-50 w-14 h-14 rounded-2xl border border-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                     {action.icon}
                 </div>
-                <h2 className="text-2xl font-bold text-forest mb-3 tracking-tight group-hover:text-leaf transition-colors uppercase italic">{action.title}</h2>
-                <p className="text-sage text-[10px] uppercase font-bold italic tracking-widest leading-relaxed">{action.desc}</p>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">{action.title}</h2>
+                <p className="text-slate-500 font-medium text-sm leading-relaxed">{action.desc}</p>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-leaf/10 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-sage group-hover:text-leaf transition-colors italic">
-                 <span>Explore Interface</span>
-                 <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
+              <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-indigo-600">
+                 <span>Open Module</span>
+                 <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
-        {/* System Snapshot */}
-        <div className="mt-16 bg-white border border-leaf/10 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-lg">
+        <div className="mt-16 bg-white border border-slate-200 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm">
             <div className="flex items-center gap-6">
-                <div className="p-4 bg-cream rounded-2xl border border-leaf/10">
-                    <LayoutGrid className="text-leaf/40" size={32} />
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <LayoutGrid className="text-slate-300" size={32} />
                 </div>
                 <div>
-                    <h3 className="text-lg font-bold text-forest tracking-tight uppercase italic">Platform Integrity Module</h3>
-                    <p className="text-[10px] text-sage font-bold uppercase tracking-widest italic">All administrative actions are logged for security auditing purposes.</p>
+                    <h3 className="text-lg font-bold text-slate-900">System Logs</h3>
+                    <p className="text-sm text-slate-500 font-medium">All administrative actions are tracked for security auditing.</p>
                 </div>
             </div>
-            <button className="bg-cream hover:bg-leaf/5 text-leaf font-bold py-3 px-8 rounded-2xl text-[10px] uppercase tracking-widest transition-all border border-leaf/10 flex items-center gap-2 italic">
-                <Settings size={14} />
-                Governance Settings
+            <button 
+                onClick={() => navigate("/admin/governance")}
+                className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl text-sm hover:bg-black transition-all flex items-center gap-2"
+            >
+                <Settings size={16} />
+                General Settings
             </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
+
 
 export default AdminDashboard;

@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   Plus
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 function EditQuestion() {
   const { id } = useParams();
@@ -99,98 +99,94 @@ function EditQuestion() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fdfbf7] flex items-center justify-center">
-        <Loader2 className="text-[#2d5a27] animate-spin" size={48} />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="text-indigo-600 animate-spin" size={48} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fdfbf7] text-[#1a2e1a] p-8 font-sans">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl mx-auto"
-      >
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 font-sans">
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <button 
             onClick={() => navigate("/questions")}
-            className="flex items-center gap-2 text-[#2d5a27] hover:text-[#1f3f1b] transition-colors group"
+            className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors group"
           >
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-bold uppercase tracking-widest text-[10px] italic">Problem Bank / Audit</span>
+            <span className="font-bold text-xs uppercase tracking-wider">Back to Problems</span>
           </button>
           
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#2d5a27] rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
                 <FileText className="text-white" size={24} />
             </div>
-            <h1 className="text-3xl font-black text-[#1a2e1a] tracking-tighter italic uppercase">Refactor Problem</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Edit Problem</h1>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Main Info Card */}
-          <div className="bg-white border border-emerald-900/10 rounded-3xl p-8 shadow-lg space-y-6">
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-[#2d5a27] uppercase tracking-widest ml-1 italic">Problem Identifier</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Problem Title</label>
                 <div className="relative">
-                  <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a0ba9f]" size={18} />
+                  <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     required
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
-                    className="w-full bg-[#fdfbf7] border border-emerald-900/10 rounded-2xl py-3 pl-12 pr-4 text-[#1a2e1a] placeholder-[#a0ba9f] outline-none focus:border-[#2d5a27]/50 focus:ring-4 focus:ring-[#2d5a27]/5 transition-all font-semibold text-sm"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-semibold text-sm"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-[#2d5a27] uppercase tracking-widest ml-1 italic">Target Function Registry</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Function Name</label>
                 <div className="relative">
-                  <Code2 className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a0ba9f]" size={18} />
+                  <Code2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     required
                     name="functionName"
                     value={formData.functionName}
                     onChange={handleChange}
-                    className="w-full bg-[#fdfbf7] border border-emerald-900/10 rounded-2xl py-3 pl-12 pr-4 text-[#1a2e1a] placeholder-[#a0ba9f] outline-none focus:border-[#2d5a27]/50 focus:ring-4 focus:ring-[#2d5a27]/5 transition-all font-mono text-sm"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-mono text-sm"
                   />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-[#2d5a27] uppercase tracking-widest ml-1 italic">Detailed Logic [MARKDOWN]</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Problem Description</label>
               <div className="relative">
-                <FileText className="absolute left-4 top-4 text-[#a0ba9f]" size={18} />
+                <FileText className="absolute left-4 top-4 text-slate-400" size={18} />
                 <textarea
                   required
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   rows={6}
-                  className="w-full bg-[#fdfbf7] border border-emerald-900/10 rounded-2xl py-3 pl-12 pr-4 text-[#1a2e1a] placeholder-[#a0ba9f] outline-none focus:border-[#2d5a27]/50 focus:ring-4 focus:ring-[#2d5a27]/5 transition-all font-medium leading-relaxed text-sm"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-medium leading-relaxed text-sm"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-[#2d5a27] uppercase tracking-widest ml-1 italic">Difficulty Tier Adjustment</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Difficulty Level</label>
               <div className="flex gap-4">
                 {["Easy", "Medium", "Hard"].map((level) => (
                   <button
                     key={level}
                     type="button"
                     onClick={() => setFormData({ ...formData, difficulty: level })}
-                    className={`flex-1 py-3 px-6 rounded-2xl font-bold border transition-all text-xs ${
+                    className={`flex-1 py-3 px-6 rounded-xl font-bold border transition-all text-xs ${
                       formData.difficulty === level 
-                        ? (level === 'Easy' ? 'bg-emerald-100 border-emerald-500 text-emerald-800 shadow-lg shadow-emerald-500/20' :
-                           level === 'Medium' ? 'bg-amber-100 border-amber-500 text-amber-800 shadow-lg shadow-amber-500/20' :
-                           'bg-rose-100 border-rose-500 text-rose-800 shadow-lg shadow-rose-500/20')
-                        : 'bg-[#fdfbf7] border-emerald-900/10 text-[#a0ba9f] hover:border-emerald-900/20'
+                        ? (level === 'Easy' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm' :
+                           level === 'Medium' ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm' :
+                           'bg-rose-50 border-rose-500 text-rose-700 shadow-sm')
+                        : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
                     }`}
                   >
                     {level.toUpperCase()}
@@ -204,33 +200,26 @@ function EditQuestion() {
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-2">
-                <Database className="text-[#2d5a27]" size={20} />
-                <h2 className="text-lg font-bold text-[#1a2e1a] tracking-tight uppercase italic">Validation Vectors</h2>
+                <Database className="text-indigo-600" size={20} />
+                <h2 className="text-lg font-bold text-slate-900">Test Cases</h2>
               </div>
-              <span className="text-[10px] font-bold text-[#2d5a27] uppercase tracking-widest bg-emerald-50 border border-emerald-900/10 px-3 py-1 rounded-full italic">
-                {formData.testCases.length} Active Nodes
+              <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full">
+                {formData.testCases.length} Test Cases
               </span>
             </div>
 
             <div className="space-y-4">
-              <AnimatePresence mode="popLayout">
                 {formData.testCases.map((tc, index) => (
-                  <motion.div 
+                  <div 
                     key={index}
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white border border-emerald-900/10 rounded-3xl p-6 relative group overflow-hidden"
+                    className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col space-y-4"
                   >
-                    <div className="absolute top-0 left-0 w-1 h-full bg-[#2d5a27]/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-[10px] font-black text-[#2d5a27] uppercase tracking-widest italic group-hover:translate-x-1 transition-transform inline-block font-mono underline decoration-emerald-900/30 underline-offset-4">VECTOR ID: 0{index + 1}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Case #{index + 1}</span>
                       <button 
                         type="button"
                         onClick={() => removeTestCase(index)}
-                        className="text-[#a0ba9f] hover:text-rose-500 transition-colors p-1"
+                        className="text-slate-300 hover:text-rose-500 transition-colors p-1"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -238,35 +227,34 @@ function EditQuestion() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                         <div className="text-[10px] font-black text-[#2d5a27] uppercase tracking-widest ml-1 italic">Input Stream</div>
+                         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Input</div>
                          <textarea
                             value={tc.input}
                             onChange={(e) => updateTestCase(index, 'input', e.target.value)}
                             rows={2}
-                            className="w-full bg-[#fdfbf7] border border-emerald-900/10 rounded-2xl py-3 px-4 text-[#2d5a27] placeholder-[#a0ba9f] outline-none focus:border-[#2d5a27]/50 focus:ring-4 focus:ring-[#2d5a27]/5 transition-all font-mono text-xs italic"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-mono text-xs"
                          />
                       </div>
                       <div className="space-y-2">
-                         <div className="text-[10px] font-black text-[#2d5a27] uppercase tracking-widest ml-1 italic">Expected Yield</div>
+                         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Expected Output</div>
                          <textarea
                             value={tc.output}
                             onChange={(e) => updateTestCase(index, 'output', e.target.value)}
                             rows={2}
-                            className="w-full bg-[#fdfbf7] border border-emerald-900/10 rounded-2xl py-3 px-4 text-rose-600 placeholder-[#a0ba9f] outline-none focus:border-[#2d5a27]/50 focus:ring-4 focus:ring-[#2d5a27]/5 transition-all font-mono text-xs italic"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-mono text-xs"
                          />
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
-              </AnimatePresence>
 
               <button
                 type="button"
                 onClick={addTestCase}
-                className="w-full py-4 border-2 border-dashed border-emerald-900/10 rounded-3xl text-[#2d5a27] font-bold uppercase tracking-widest text-[10px] hover:border-[#2d5a27]/30 hover:text-[#2d5a27] transition-all bg-emerald-50/5 flex items-center justify-center gap-2 group italic font-mono"
+                className="w-full py-4 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold uppercase tracking-wider text-[10px] hover:border-indigo-300 hover:text-indigo-600 transition-all bg-white flex items-center justify-center gap-2"
               >
-                <Plus size={16} className="group-hover:rotate-90 transition-transform" />
-                Initialize New Vector Instance
+                <Plus size={16} />
+                Add Test Case
               </button>
             </div>
           </div>
@@ -276,39 +264,40 @@ function EditQuestion() {
             <button
               disabled={saving}
               type="submit"
-              className={`flex-1 font-black py-4 rounded-3xl transition-all shadow-lg flex items-center justify-center gap-3 uppercase tracking-tighter italic text-lg border ${
+              className={`flex-1 font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 ${
                 success 
-                ? "bg-emerald-600 text-white border-emerald-400/20" 
-                : "bg-[#2d5a27] hover:bg-[#1f3f1b] text-white border-emerald-900/20 shadow-emerald-900/20"
+                ? "bg-emerald-600 text-white shadow-emerald-200" 
+                : "bg-indigo-600 hover:bg-indigo-700 text-white"
               }`}
             >
               {saving ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/20 border-t-white"></div>
+                <Loader2 className="animate-spin" size={20} />
               ) : success ? (
                 <>
                   <CheckCircle2 size={24} />
-                  Registry Synchronized
+                  Changes Saved
                 </>
               ) : (
                 <>
                   <Save size={20} />
-                  Update Questions
+                  Update Problem
                 </>
               )}
             </button>
           </div>
         </form>
         
-        <div className="mt-12 p-6 bg-emerald-50 rounded-3xl border border-emerald-900/10 flex items-start gap-4">
-            <AlertCircle className="text-[#2d5a27] mt-1" size={20} />
+        <div className="mt-12 p-6 bg-white rounded-3xl border border-slate-200 flex items-start gap-4 shadow-sm">
+            <AlertCircle className="text-indigo-600 mt-0.5" size={20} />
             <div className="text-sm">
-                <h4 className="font-bold text-[#2d5a27] uppercase tracking-widest text-[10px] mb-1 italic">Architectural Continuity Check</h4>
-                <p className="text-[#4a5d4a] leading-relaxed italic text-xs font-bold uppercase tracking-tight">Synchronizing updates will affect all future user submissions. Ensure the validation suite covers edge cases for all runtimes.</p>
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-1">Architectural Note</h4>
+                <p className="text-slate-500 font-medium leading-relaxed text-xs">Standardized updates will affect all future submissions. Ensure test coverage remains consistent with the original problem constraints.</p>
             </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
+
 
 export default EditQuestion;

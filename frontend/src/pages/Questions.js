@@ -8,9 +8,10 @@ import {
   Trash2, 
   Edit3,
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+
 
 function Questions() {
   const [questions, setQuestions] = useState([]);
@@ -18,8 +19,10 @@ function Questions() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("All");
+  const [selectedCompany, setSelectedCompany] = useState("All");
   const [loading, setLoading] = useState(true);
 
+  const companies = ["All", "Google", "Amazon", "Meta", "Microsoft", "Netflix"];
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,53 +68,54 @@ function Questions() {
   const filteredQuestions = questions.filter(q => {
     const matchesSearch = q.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filter === "All" || q.difficulty === filter;
-    return matchesSearch && matchesFilter;
+    const matchesCompany = selectedCompany === "All" || (q.companies && q.companies.some(c => c.toLowerCase() === selectedCompany.toLowerCase()));
+    return matchesSearch && matchesFilter && matchesCompany;
   });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#fdfbf7]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2d5a27]"></div>
+      <div className="flex items-center justify-center h-full bg-slate-50">
+        <Loader2 className="animate-spin text-indigo-600" size={48} />
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8 bg-[#fdfbf7] min-h-screen text-[#1a2e1a] font-sans">
+    <div className="p-8 max-w-6xl mx-auto space-y-8 bg-slate-50 min-h-screen text-slate-900 font-sans">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-[#1a2e1a] mb-2 tracking-tighter italic uppercase">Practice Matrix</h1>
-          <p className="text-[#4a7c44] uppercase text-[10px] font-black tracking-widest italic opacity-80">Synthesizing logic through botanical precision.</p>
+          <h1 className="text-4xl font-bold text-slate-900 mb-1">Coding Lessons</h1>
+          <p className="text-slate-500 font-medium">Practice and learn with real-world coding challenges.</p>
         </div>
         {isAdmin && (
             <button 
                 onClick={() => navigate("/admin/add")}
-                className="bg-[#2d5a27] hover:bg-[#1f3f1b] text-white px-6 py-3 rounded-2xl font-black transition-all shadow-lg shadow-emerald-900/20 uppercase text-xs tracking-widest italic"
-            >+ Insert Node</button>
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md uppercase text-xs tracking-wider"
+            >+ Add Lesson</button>
         )}
       </div>
 
       {/* Filters & Search */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-6 rounded-[2rem] border border-emerald-900/10 shadow-sm">
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a0ba9f]" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text"
-            placeholder="Search questions..."
+            placeholder="Search lessons..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#fdfbf7] border border-emerald-900/10 rounded-2xl py-3.5 pl-12 pr-6 outline-none focus:border-[#2d5a27]/30 transition-all text-sm font-medium italic placeholder-[#a0ba9f]"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-6 outline-none focus:border-indigo-500 transition-all text-sm font-medium placeholder-slate-400"
           />
         </div>
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
           {["All", "Easy", "Medium", "Hard"].map(level => (
             <button
               key={level}
               onClick={() => setFilter(level)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap italic ${
+              className={`px-6 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 filter === level 
-                  ? "bg-[#2d5a27] text-white shadow-lg shadow-emerald-900/20" 
-                  : "bg-emerald-50 text-[#a0ba9f] border border-emerald-900/5 hover:bg-emerald-100/50 hover:text-[#4a7c44]"
+                  ? "bg-indigo-600 text-white shadow-md" 
+                  : "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100"
               }`}
             >
               {level}
@@ -120,88 +124,93 @@ function Questions() {
         </div>
       </div>
 
-      {/* Questions table header */}
-      <div className="hidden md:grid grid-cols-12 px-8 text-[10px] font-black text-[#a0ba9f] uppercase tracking-widest mb-2 italic">
-        <div className="col-span-2 text-[#2d5a27]/50 italic">Integrity</div>
-        <div className="col-span-6">Problem Structure</div>
-        <div className="col-span-2">Complexity</div>
-        <div className="col-span-2 text-right">Access</div>
+      <div className="flex gap-2 pb-2 overflow-x-auto custom-scrollbar">
+        {companies.map(c => (
+            <button
+                key={c}
+                onClick={() => setSelectedCompany(c)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                    selectedCompany === c 
+                        ? "bg-slate-900 text-white shadow-md" 
+                        : "bg-white text-slate-500 border border-slate-200 hover:border-indigo-300"
+                }`}
+            >
+                {c}
+            </button>
+        ))}
       </div>
 
       {/* Questions list */}
-      <div className="space-y-4">
-        <AnimatePresence mode="popLayout">
-          {filteredQuestions.map((q, i) => (
-            <motion.div
-              layout
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
+      <div className="space-y-3">
+        {/* Table Header */}
+        <div className="hidden md:grid grid-cols-12 px-8 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <div className="col-span-2">Status</div>
+            <div className="col-span-6">Title</div>
+            <div className="col-span-2">Difficulty</div>
+            <div className="col-span-2 text-right">Action</div>
+        </div>
+
+        {filteredQuestions.map((q, i) => (
+            <div
               key={q._id}
-              className="group grid grid-cols-1 md:grid-cols-12 items-center px-8 py-5 bg-white border border-emerald-900/10 rounded-[2rem] hover:bg-emerald-50/40 hover:border-[#2d5a27]/30 transition-all cursor-pointer relative overflow-hidden shadow-sm shadow-emerald-900/5"
+              className="group grid grid-cols-1 md:grid-cols-12 items-center px-8 py-5 bg-white border border-slate-200 rounded-2xl hover:border-indigo-400 transition-all cursor-pointer shadow-sm"
               onClick={() => navigate(`/editor/${q._id}`)}
             >
               <div className="col-span-2 mb-2 md:mb-0">
                 {solvedIds.has(q._id) ? (
-                  <div className="flex items-center space-x-2 text-emerald-600">
-                    <CheckCircle2 size={20} className="fill-emerald-50" />
-                    <span className="text-[10px] font-black uppercase tracking-widest italic">Verified</span>
-                  </div>
+                  <CheckCircle2 size={20} className="text-emerald-500" />
                 ) : (
-                  <div className="flex items-center space-x-2 text-[#a0ba9f]/30">
-                    <Circle size={20} />
-                    <span className="text-[10px] font-black uppercase tracking-widest italic opacity-0 group-hover:opacity-100 transition-opacity">Untested</span>
-                  </div>
+                  <Circle size={20} className="text-slate-200" />
                 )}
               </div>
               <div className="col-span-6 mb-2 md:mb-0">
-                <h3 className="text-[#1a2e1a] font-extrabold group-hover:text-[#2d5a27] transition-colors uppercase tracking-tighter text-base italic">
-                  {i + 1}. {q.title}
+                <h3 className="text-slate-900 font-bold group-hover:text-indigo-600 transition-colors text-base">
+                  {q.title}
                 </h3>
               </div>
               <div className="col-span-2 mb-2 md:mb-0">
-                <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-inner italic ${
-                  q.difficulty === "Easy" ? "bg-emerald-100 text-emerald-800" :
-                  q.difficulty === "Medium" ? "bg-amber-100 text-amber-800" :
-                  "bg-rose-100 text-rose-800"
+                <span className={`text-[10px] font-bold uppercase px-3 py-1 rounded-lg ${
+                  q.difficulty === "Easy" ? "bg-emerald-50 text-emerald-600" :
+                  q.difficulty === "Medium" ? "bg-amber-50 text-amber-600" :
+                  "bg-rose-50 text-rose-600"
                 }`}>
                   {q.difficulty}
                 </span>
               </div>
-              <div className="col-span-2 flex justify-end space-x-3">
+              <div className="col-span-2 flex justify-end space-x-2">
                 {isAdmin && (
                   <>
                     <button 
                       onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit/${q._id}`); }}
-                      className="p-2 bg-emerald-50 text-[#2d5a27] rounded-xl hover:bg-emerald-100 transition-all border border-emerald-900/10 shadow-sm"
+                      className="p-2 bg-slate-50 text-slate-500 rounded-lg hover:bg-slate-100 border border-slate-200"
                     >
-                      <Edit3 size={18} />
+                      <Edit3 size={16} />
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); deleteQuestion(q._id); }}
-                      className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all border border-rose-900/10 shadow-sm"
+                      className="p-2 bg-slate-50 text-rose-500 rounded-lg hover:bg-rose-50 border border-slate-200"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </>
                 )}
-                <div className="p-2 bg-[#fdfbf7] text-[#2d5a27] rounded-xl group-hover:bg-[#2d5a27] group-hover:text-white transition-all border border-emerald-900/10 shadow-sm">
-                  <ChevronRight size={18} />
+                <div className="p-2 bg-slate-50 text-slate-400 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-all border border-slate-200">
+                  <ChevronRight size={16} />
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+            </div>
+        ))}
         
         {filteredQuestions.length === 0 && (
-          <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-emerald-900/10 opacity-50">
-            <TrendingUp size={64} className="mx-auto text-[#a0ba9f] mb-6" />
-            <p className="text-[#a0ba9f] font-black uppercase tracking-[0.2em] text-xs italic">Zero Parity Found in Knowledge Matrix</p>
+          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+            <TrendingUp size={48} className="mx-auto text-slate-200 mb-4" />
+            <p className="text-slate-400 font-bold uppercase tracking-wider text-xs">No lessons found. Try searching for something else!</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
 
 export default Questions;

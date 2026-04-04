@@ -6,14 +6,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        cream: "#fdfbf7",
-        forest: "#1a2e1a",
-        leaf: {
-          light: "#4a7c44",
-          DEFAULT: "#2d5a27",
-          dark: "#1a2e1a",
-        },
-        sage: "#4a7c44",
+        vanilla: "#FAECB6",
+        teal: "#2BBAA5",
+        mint: "#93D3AE",
+        sun: "#F9A822",
+        coral: "#F96635",
+        darkTeal: "#114a42",
       },
     },
   },

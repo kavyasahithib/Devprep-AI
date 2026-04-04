@@ -27,7 +27,21 @@ const submissionSchema = new mongoose.Schema({
     default: "submitted"
   },
 
+  githubSynced: {
+    type: Boolean,
+    default: false
+  },
+
+  githubRepoUrl: {
+    type: String
+  },
+
+  plagiarismScore: {
+    type: Number,
+    default: 0
+  },
   createdAt: {
+
     type: Date,
     default: Date.now
   }

@@ -13,7 +13,9 @@ exports.addQuestion = async (req, res) => {
       description,
       difficulty,
       testCases,
-      functionName: functionName || "solution"
+      functionName: functionName || "solution",
+      tags: req.body.tags || [],
+      companies: req.body.companies || []
     });
 
     await question.save();
@@ -105,10 +107,10 @@ exports.deleteQuestion = async (req, res) => {
 exports.updateQuestion = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, difficulty, testCases } = req.body;
+    const { title, description, difficulty, testCases, tags, companies } = req.body;
     const updated = await Question.findByIdAndUpdate(
       id,
-      { title, description, difficulty, testCases },
+      { title, description, difficulty, testCases, tags, companies },
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: "Question not found" });
@@ -150,3 +152,15 @@ exports.getDailyQuestion = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.getQuestionsByCompany = async (req, res) => {
+  try {
+    const { company } = req.params;
+    const questions = await Question.find({ 
+      companies: { $in: [new RegExp(company, 'i')] } 
+    });
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching company questions" });
+  }
+};

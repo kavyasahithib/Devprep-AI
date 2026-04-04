@@ -2,17 +2,20 @@ const jwt = require("jsonwebtoken");
 
 const authMiddleware = (req, res, next) => {
 
+  let token;
   const authHeader = req.headers.authorization;
 
-  // Check if header exists
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({
       message: "No token provided"
     });
   }
-
-  // Extract token
-  const token = authHeader.split(" ")[1];
 
   try {
 

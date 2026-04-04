@@ -10,7 +10,9 @@ const {
   generateHints,
   generateExplanation,
   analyzeComplexity,
-  getSolvedQuestions
+  getSolvedQuestions,
+  syncSubmissionToGithub,
+  getSubmissionActivity
 } = require("../controllers/submissionController");
 
 
@@ -18,10 +20,12 @@ router.post("/run", authMiddleware, runCodeOnly);
 
 router.post("/submit", authMiddleware, submitCode);
 
+router.post("/sync/:submissionId", authMiddleware, syncSubmissionToGithub);
+
 router.get("/my-submissions", authMiddleware, getUserSubmissions);
 
 router.get("/solved", authMiddleware, getSolvedQuestions);
-
+router.get("/activity", authMiddleware, getSubmissionActivity);
 router.get("/hints/:questionId", authMiddleware, generateHints);
 
 router.post("/explanation", authMiddleware, generateExplanation);
