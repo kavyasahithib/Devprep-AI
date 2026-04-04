@@ -20,10 +20,48 @@ const generateTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
+// Helper: Password Validation
+const validatePasswordStrength = (password, email, name) => {
+    const minLength = 8;
+    const maxLength = 12;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    if (password.length < minLength || password.length > maxLength) {
+        return "Password must be between 8 and 12 characters.";
+    }
+    if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+        return "Password must include uppercase, lowercase, number, and special character.";
+    }
+    
+    const lowerPass = password.toLowerCase();
+    const lowerEmail = email.toLowerCase().split('@')[0];
+    const lowerName = name ? name.toLowerCase() : "";
+    
+    if (lowerPass.includes(lowerEmail) || (lowerName && lowerPass.includes(lowerName))) {
+        return "Password cannot contain your name or email.";
+    }
+    
+    const commonPasswords = ["password123", "12345678", "admin123", "password!"];
+    if (commonPasswords.includes(lowerPass)) {
+        return "This password is too common. Please try a more unique one.";
+    }
+    
+    return null;
+};
+
 // ================= SIGNUP =================
 exports.signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
+    // Password Policy Check
+    const passwordError = validatePasswordStrength(password, email, name);
+    if (passwordError) {
+        return res.status(400).json({ message: passwordError });
+    }
 
     let user = await User.findOne({ email });
 
@@ -198,6 +236,7 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
+    
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() }
@@ -205,6 +244,12 @@ exports.resetPassword = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired reset token." });
+    }
+
+    // Password Policy Check
+    const passwordError = validatePasswordStrength(password, user.email, user.name);
+    if (passwordError) {
+        return res.status(400).json({ message: passwordError });
     }
 
     user.password = await bcrypt.hash(password, 10);

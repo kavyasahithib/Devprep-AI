@@ -94,15 +94,19 @@ graph TD
 ### 🔑 AuthX Security Protocol (Lifecycle)
 The **AuthX Suite** implements a persistent session strategy designed for both security and user convenience:
 
-1.  **Registration Phase**:
+1.  **Strict Password Policy**:
+    -   8–12 characters with Uppercase, Lowercase, Number, and Special Symbol.
+    -   Automatic exclusion of Personal Metadata (Name/Email) from passwords.
+    -   Real-time "Security Checklist" on the Signup interface for assistive UX.
+2.  **Registration Phase**:
     -   User provides credentials $\rightarrow$ Password hashed via **Bcrypt** (Salt: 10).
     -   System generates a **6-digit OTP** $\rightarrow$ Saved to DB with a 10-minute TTL.
-    -   **Nodemailer** dispatches the code to the user's verified address.
-2.  **Verification & Token Issuance**:
+    -   **Elite Email Engine** (Nodemailer) dispatches branded HTML codes.
+3.  **Verification & Token Issuance**:
     -   Valid OTP $\rightarrow$ Account marked `isVerified: true`.
     -   Server issues a **Short-lived Access Token** (15m) and a **Long-lived Refresh Token** (7d).
     -   Refresh Token is stored in the DB (for revocation) and returned to the client.
-3.  **Silent Refresh Flow**:
+4.  **Silent Refresh Flow**:
     -   Frontend **Axios Interceptor** detects 401 (Expired).
     -   Client calls `/api/auth/refresh` with the Refresh Token.
     -   Server validates token $\rightarrow$ Issues a fresh Access Token $\rightarrow$ Transparent UX.
@@ -146,6 +150,13 @@ A centralized control system accessible via the **Site Settings** dashboard:
 -   **Public Registrations**: Toggle `allowSignup` to close the platform during private cohorts.
 -   **Maintenance Mode**: Global flag to intercept all non-admin requests with a "Pardon our Dust" notice.
 -   **Require Email Check**: Enforce or skip OTP verification based on current security requirements.
+
+---
+
+### 🚀 Industrial-Grade Reliability
+- **Fail-Fast Environment Validation**: Built-in checker that ensures required `.env` variables (`JWT_SECRET`, `EMAIL_PASS`, etc.) are present before the server starts.
+- **Elite Communication Engine**: Responsive, branded HTML email templates for OTP, Welcome, and Password Reset interactions.
+- **Modern SEO & Fonts**: Optimized frontend metadata and Inter-font integration for premium visual fidelity.
 
 ---
 

@@ -1,4 +1,16 @@
 require("dotenv").config();
+
+// Environment Validation
+const requiredEnv = ["MONGODB_URI", "JWT_SECRET", "REFRESH_TOKEN_SECRET", "EMAIL_USER", "EMAIL_PASS"];
+const missingEnv = requiredEnv.filter(env => !process.env[env]);
+const aiKeyMissing = !process.env.GOOGLE_API_KEY && !process.env.GEMINI_API_KEY;
+
+if (missingEnv.length > 0 || aiKeyMissing) {
+  console.error("\x1b[31m%s\x1b[0m", "CRITICAL ERROR: Missing required environment variables:");
+  missingEnv.forEach(env => console.error("- %s", env));
+  if (aiKeyMissing) console.error("- GOOGLE_API_KEY (or GEMINI_API_KEY)");
+  process.exit(1);
+}
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");

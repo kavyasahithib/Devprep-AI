@@ -157,6 +157,29 @@ function Signup() {
                         required
                     />
                 </div>
+                
+                {/* Password Policy Guide */}
+                <div className="mt-4 p-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    <div className="flex items-center gap-2 mb-2 text-indigo-600">
+                        <Shield size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-wider">Security Checklist</span>
+                    </div>
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+                        {[
+                            { label: "8-12 Characters", met: password.length >= 8 && password.length <= 12 },
+                            { label: "Uppercase & Lowercase", met: /[A-Z]/.test(password) && /[a-z]/.test(password) },
+                            { label: "Includes a Number", met: /[0-9]/.test(password) },
+                            { label: "Special Character", met: /[!@#$%^&*(),.?":{}|<>]/.test(password) }
+                        ].map((req, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${req.met ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                                <span className={`text-[10px] font-bold ${req.met ? 'text-slate-900' : 'text-slate-400'}`}>
+                                    {req.label}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             </div>
 
             <AnimatePresence>
