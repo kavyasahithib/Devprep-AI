@@ -151,6 +151,6 @@ A centralized control system accessible via the **Site Settings** dashboard:
 
 
 
-**Developed for Excellence by the DevPrep AI Team.**
+**Developed for Excellence by the DevPrep AI Team 💙💙💙.**
 
 
