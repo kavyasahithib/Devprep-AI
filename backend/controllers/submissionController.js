@@ -1,7 +1,8 @@
 const Submission = require("../models/Submission");
 const Question = require("../models/Question");
+const User = require("../models/User");
 const { runCode } = require("../services/codeRunner");
-const { reviewCode, generateExplanation, analyzeComplexity } = require("../services/aiService");
+const { reviewCode, generateExplanation, analyzeComplexity, summarizeMistakes } = require("../services/aiService");
 const { checkPlagiarism } = require("../services/securityService");
 
 
@@ -195,34 +196,100 @@ exports.submitCode = async (req, res) => {
 
     await submission.save();
 
-    let review = null;
-    let explanation = null;
-    let complexity = null;
+    const { stream = false } = req.body;
 
     if (finalStatus === "Accepted") {
-      // Generate AI review, explanation, and complexity analysis in parallel for better performance
-      console.log('Generating AI feedback in parallel...');
-      try {
-        const [reviewRes, explanationRes, complexityRes] = await Promise.all([
-          reviewCode(code, question, language),
-          generateExplanation(code, question, language),
-          analyzeComplexity(code, language)
-        ]);
-        review = reviewRes;
-        explanation = explanationRes;
-        complexity = complexityRes;
-      } catch (aiError) {
-        console.error('Error in parallel AI generation:', aiError.message);
-        review = "AI feedback temporarily unavailable.";
+      if (stream) {
+        // SSE Streaming Sequential Logic
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        // Push initial test results
+        res.write(`data: ${JSON.stringify({ status: finalStatus, testResults, done: false })}\n\n`);
+
+        const { generateStreamingContent } = require("../services/aiService");
+        
+        // Fetch user mistakes for context
+        const userWithMistakes = await User.findById(req.user.id).select('lastMistakes');
+        const userMistakes = userWithMistakes ? userWithMistakes.lastMistakes : [];
+        const mistakesText = userMistakes.length > 0 
+          ? `\n\nCandidate's Previous Mistakes:\n${userMistakes.map(m => `- ${m.topic}: ${m.mistake}`).join('\n')}` 
+          : "";
+
+        const sections = [
+            { 
+              name: 'review', 
+              prompt: `Review this ${language} code for "${question.title}":\n${code}\nProvide mistakes, optimizations, and language tips.${mistakesText}` 
+            },
+            { name: 'explanation', prompt: `Explain this ${language} solution for "${question.title}" step-by-step:\n${code}` },
+            { name: 'complexity', prompt: `Analyze time and space complexity for this ${language} code:\n${code}\nReturn O(?) with explanation.` }
+        ];
+
+        for (const section of sections) {
+            res.write(`data: ${JSON.stringify({ section: section.name, start: true })}\n\n`);
+            const assistantStream = await generateStreamingContent(section.prompt);
+            let sectionContent = "";
+            for await (const chunk of assistantStream) {
+                const content = chunk.text();
+                sectionContent += content;
+                res.write(`data: ${JSON.stringify({ section: section.name, chunk: content })}\n\n`);
+            }
+            res.write(`data: ${JSON.stringify({ section: section.name, end: true, full: sectionContent })}\n\n`);
+
+            if (section.name === 'review') {
+              summarizeMistakes(sectionContent).then(async (mistakes) => {
+                if (mistakes.length > 0) {
+                  await User.findByIdAndUpdate(req.user.id, {
+                    $push: { lastMistakes: { $each: mistakes.slice(0, 2), $position: 0 } },
+                    $slice: { lastMistakes: 10 }
+                  });
+                }
+              }).catch(e => console.error("Mistake update error:", e));
+            }
+        }
+
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        return res.end();
+      } else {
+        // Standard non-streaming parallel AI generation
+        try {
+          const userWithMistakes = await User.findById(req.user.id).select('lastMistakes');
+          const userMistakes = userWithMistakes ? userWithMistakes.lastMistakes : [];
+
+          const [reviewRes, explanationRes, complexityRes] = await Promise.all([
+            reviewCode(code, question, language, userMistakes),
+            generateExplanation(code, question, language),
+            analyzeComplexity(code, language)
+          ]);
+
+          // Update user memory in background
+          summarizeMistakes(reviewRes).then(async (mistakes) => {
+            if (mistakes.length > 0) {
+              await User.findByIdAndUpdate(req.user.id, {
+                $push: { lastMistakes: { $each: mistakes.slice(0, 2), $position: 0 } },
+                $slice: { lastMistakes: 10 }
+              });
+            }
+          }).catch(e => console.error("Mistake update error:", e));
+
+          return res.json({
+            status: finalStatus,
+            testResults,
+            review: reviewRes,
+            explanation: explanationRes,
+            complexity: complexityRes
+          });
+        } catch (aiError) {
+          console.error('Error in parallel AI generation:', aiError.message);
+          return res.json({ status: finalStatus, testResults, review: "AI feedback temporarily unavailable." });
+        }
       }
     }
 
     res.json({
       status: finalStatus,
-      testResults,
-      review,
-      explanation,
-      complexity
+      testResults
     });
 
   } catch (error) {

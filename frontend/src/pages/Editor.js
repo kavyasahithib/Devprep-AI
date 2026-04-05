@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import { useState, useEffect, useCallback, useRef } from "react";
+import API from "../services/api";
 import { Editor, DiffEditor } from "@monaco-editor/react";
 import {
   Play,
@@ -18,9 +18,13 @@ import {
   Cpu,
   Plus,
   X,
-  FileCode
+  FileCode,
+  Terminal,
+  Zap,
+  Command
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { initVimMode } from 'monaco-vim';
 
 function CodeEditor() {
   const { id } = useParams();
@@ -43,6 +47,79 @@ function CodeEditor() {
   const [activeTab, setActiveTab] = useState("description");
   const [consoleOpen, setConsoleOpen] = useState(true);
   const [testResults, setTestResults] = useState(null);
+  const [vimEnabled, setVimEnabled] = useState(false);
+  const [formatOnSave, setFormatOnSave] = useState(true);
+  const editorRef = useRef(null);
+  const vimModeRef = useRef(null);
+  const statusNodeRef = useRef(null);
+
+  const handleEditorDidMount = (editor, monaco) => {
+    editorRef.current = editor;
+
+    // Register Custom Snippets (JavaScript)
+    monaco.languages.registerCompletionItemProvider('javascript', {
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+        const suggestions = [
+          {
+            label: 'clg',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            documentation: 'Console Log',
+            insertText: 'console.log(${1:obj});',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range,
+          },
+          {
+            label: 'tryc',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            documentation: 'Try Catch Block',
+            insertText: 'try {\n\t$1\n} catch (error) {\n\tconsole.error(error);\n}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range,
+          },
+          {
+            label: 'fn',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            documentation: 'Function Template',
+            insertText: 'function ${1:name}(${2:params}) {\n\t$0\n}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range,
+          },
+        ];
+        return { suggestions: suggestions };
+      },
+    });
+
+    // Add Auto-Format Action (Ctrl+S)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      if (formatOnSave) {
+        editor.getAction('editor.action.formatDocument').run();
+      }
+    });
+
+    // Setup Vim Mode Status Bar (Optional UI enrichment)
+    if (!statusNodeRef.current) {
+        statusNodeRef.current = document.createElement('div');
+        statusNodeRef.current.className = 'vim-status-bar absolute bottom-0 right-0 bg-[#252525] text-xs px-2 py-1 text-slate-400 z-50 rounded-tl-lg border-t border-l border-white/10';
+        editor.getDomNode()?.parentElement?.appendChild(statusNodeRef.current);
+    }
+  };
+
+  useEffect(() => {
+    if (editorRef.current && vimEnabled) {
+      vimModeRef.current = initVimMode(editorRef.current, statusNodeRef.current);
+    } else {
+      if (vimModeRef.current) {
+        vimModeRef.current.dispose();
+      }
+    }
+  }, [vimEnabled]);
 
   const getTemplates = (funcName) => ({
     javascript: `// JavaScript Solution\nfunction ${funcName}(nums, target) {\n    \n}`,
@@ -71,7 +148,7 @@ function CodeEditor() {
   useEffect(() => {
     const fetchQuestion = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/questions");
+        const res = await API.get("/questions");
         const found = res.data.find((q) => q._id === id);
         if (found) {
           setQuestion(found);
@@ -87,9 +164,7 @@ function CodeEditor() {
     if (!question) return;
     setLoadingHints(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/submissions/hints/${id}`, {
-        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-      });
+      const res = await API.get(`/submissions/hints/${id}`);
       setHints(res.data.hints);
       setActiveTab("hints");
     } catch (error) {
@@ -104,13 +179,12 @@ function CodeEditor() {
     setOutput("Running...");
     setTestResults(null);
     try {
-      const res = await axios.post("http://localhost:5000/api/submissions/run",
+      const res = await API.post("/submissions/run",
         { 
           code, 
           language,
           customInput: isCustom ? customInput : ""
-        },
-        { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
+        }
       );
       const result = res.data.result;
       if (!result) {
@@ -130,9 +204,7 @@ function CodeEditor() {
 
   const fetchSubmissions = useCallback(async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/submissions", {
-        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-      });
+      const res = await API.get("/submissions");
       const filtered = res.data.filter(s => s.questionId?._id === id || s.questionId === id);
       setSubmissions(filtered.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch (error) {
@@ -151,28 +223,65 @@ function CodeEditor() {
     setOutput("Submitting...");
     setTestResults(null);
     setLoadingAI(true);
+    setReview("");
+    setExplanation("");
+    setComplexity("");
+
     try {
-      const res = await axios.post("http://localhost:5000/api/submissions/submit",
-        { questionId: id, code, language },
-        { headers: { Authorization: "Bearer " + localStorage.getItem("token") } }
-      );
+      const response = await fetch(`http://localhost:5000/api/submissions/submit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Support secure cookies
+        body: JSON.stringify({ questionId: id, code, language, stream: true })
+      });
 
-      const { testResults, review, explanation, complexity } = res.data;
-      setTestResults(testResults);
+      if (!response.ok) throw new Error("Submission failed");
 
-      const allPassed = testResults && testResults.every(r => r.status === "Passed");
-      setOutput(allPassed ? "🎯 All test cases passed!" : "❌ Some test cases failed.");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      setActiveTab("ai-feedback");
 
-      if (review || explanation || complexity) {
-        setReview(review);
-        setExplanation(explanation);
-        setComplexity(complexity);
-        setActiveTab("ai-feedback");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunkText = decoder.decode(value, { stream: true });
+        const lines = chunkText.split('\n');
+
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                try {
+                    const data = JSON.parse(line.substring(6).trim());
+                    
+                    if (data.testResults) {
+                        setTestResults(data.testResults);
+                        const allPassed = data.testResults.every(r => r.status === "Passed");
+                        setOutput(allPassed ? "🎯 All test cases passed!" : "❌ Some test cases failed.");
+                    }
+
+                    if (data.section === 'review' && data.chunk) {
+                        setReview(prev => prev + data.chunk);
+                    } else if (data.section === 'explanation' && data.chunk) {
+                        setExplanation(prev => prev + data.chunk);
+                    } else if (data.section === 'complexity' && data.chunk) {
+                        setComplexity(prev => prev + data.chunk);
+                    }
+
+                    if (data.done) {
+                        setLoadingAI(false);
+                    }
+                } catch (e) {
+                    // Ignore parsing errors for partial/malformed chunks
+                }
+            }
+        }
       }
     } catch (error) {
-      console.error(error);
-      setOutput("Error: " + (error.response?.data?.message || error.message));
-    } finally {
+      console.error("Submission error:", error);
+      setOutput("Error: " + error.message);
       setLoadingAI(false);
     }
   };
@@ -243,6 +352,28 @@ function CodeEditor() {
           </div>
 
           <div className="h-8 w-px bg-slate-200 mx-2"></div>
+          
+          {/* Editor Settings */}
+          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200 mr-2">
+            <button 
+                onClick={() => setVimEnabled(!vimEnabled)}
+                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${vimEnabled ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                title="Toggle Vim Mode"
+            >
+                <Command size={14} />
+                <span className="text-[10px] font-bold">VIM</span>
+            </button>
+            <div className="w-px h-4 bg-slate-200 mx-1"></div>
+            <button 
+                onClick={() => setFormatOnSave(!formatOnSave)}
+                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${formatOnSave ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                title="Auto-format on Save (Ctrl+S)"
+            >
+                <Zap size={14} />
+                <span className="text-[10px] font-bold">FORMAT</span>
+            </button>
+          </div>
+
           <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
             <Settings size={20} />
           </button>
@@ -489,6 +620,7 @@ function CodeEditor() {
                 language={language}
                 value={code}
                 onChange={(value) => setCode(value || "")}
+                onMount={handleEditorDidMount}
                 options={{
                   fontSize: 14,
                   minimap: { enabled: false },

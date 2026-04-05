@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "../services/api";
 import { Editor } from "@monaco-editor/react";
 import { 
   Bug, 
@@ -26,16 +26,15 @@ function BugFixMode() {
   useEffect(() => {
     const fetchBuggyCode = async () => {
       try {
-        const token = localStorage.getItem("token");
         let activeId = id;
         
         if (!activeId || activeId === ":id") {
             // Fetch daily or first available question
-            const qRes = await axios.get("http://localhost:5000/api/questions/daily");
+            const qRes = await API.get("/questions/daily");
             if (qRes.data && qRes.data._id) {
                 activeId = qRes.data._id;
             } else {
-                const allRes = await axios.get("http://localhost:5000/api/questions");
+                const allRes = await API.get("/questions");
                 if (allRes.data && allRes.data.length > 0) {
                     activeId = allRes.data[0]._id;
                 }
@@ -44,9 +43,7 @@ function BugFixMode() {
 
         if (!activeId) throw new Error("No questions available");
 
-        const res = await axios.get(`http://localhost:5000/api/debug/${activeId}`, {
-          headers: { Authorization: "Bearer " + token }
-        });
+        const res = await API.get(`/debug/${activeId}`);
         setQuestion(res.data.question);
         setBuggyCode(res.data.buggyCode);
         setFixedCode(res.data.buggyCode);
@@ -65,13 +62,10 @@ function BugFixMode() {
   const handleSubmit = async () => {
     setAnalyzing(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(`http://localhost:5000/api/debug/${id}/analyze`, {
+      const res = await API.post(`/debug/${question._id}/analyze`, {
         buggyCode,
         fixedCode,
         language: 'javascript'
-      }, {
-        headers: { Authorization: "Bearer " + token }
       });
       setAnalysis(res.data.analysis);
       setCompleted(true);

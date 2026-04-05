@@ -14,23 +14,13 @@ function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    // Check for tokens in URL (Google OAuth Redirect)
+    // Check for auth errors in URL
     const params = new URLSearchParams(location.search);
-    const token = params.get("token");
-    const refreshToken = params.get("refreshToken");
     const authError = params.get("error");
-
-    if (token && refreshToken) {
-      localStorage.setItem("token", token);
-      localStorage.setItem("refreshToken", refreshToken);
-      // We might need an extra API call here to fetch user details if role is needed
-      navigate("/dashboard");
-    }
-
     if (authError) {
       setError("Google authentication failed. Please try again.");
     }
-  }, [location, navigate]);
+  }, [location]);
 
   const handleLogin = async (e) => {
     if (e) e.preventDefault();
@@ -38,13 +28,12 @@ function Login() {
     setError("");
     try {
       const res = await API.post("/auth/login", { email, password });
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("refreshToken", res.data.refreshToken);
+      // Store user info and role, but tokens are now in secure cookies
+      localStorage.setItem("user", JSON.stringify(res.data.user));
       localStorage.setItem("role", res.data.user.role);
       navigate("/dashboard");
     } catch (err) {
       if (err.response?.status === 401 && err.response?.data?.email) {
-          // Redirect to verify if not verified
           navigate("/verify-otp", { state: { email: err.response.data.email } });
       } else {
           setError(err.response?.data?.message || "Invalid credentials. Please try again.");

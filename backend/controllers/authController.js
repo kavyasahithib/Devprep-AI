@@ -52,6 +52,27 @@ const validatePasswordStrength = (password, email, name) => {
     return null;
 };
 
+// Helper: Set Cookie
+const setTokenCookies = (res, accessToken, refreshToken) => {
+  const isProd = process.env.NODE_ENV === "production";
+  
+  res.cookie("token", accessToken, {
+    httpOnly: true,
+    secure: isProd, // Disable secure on localhost to allow cookies over HTTP
+    sameSite: isProd ? "strict" : "lax", // Lax is necessary for redirects to work on local dev
+    path: "/",
+    maxAge: 15 * 60 * 1000, // 15 mins
+  });
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "strict" : "lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  });
+};
+
 // ================= SIGNUP =================
 exports.signup = async (req, res) => {
   try {
@@ -73,13 +94,11 @@ exports.signup = async (req, res) => {
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
     if (user) {
-      // Update existing unverified user
       user.name = name;
       user.password = await bcrypt.hash(password, 10);
       user.otp = otp;
       user.otpExpires = otpExpires;
     } else {
-      // Create new unverified user
       const hashedPassword = await bcrypt.hash(password, 10);
       user = new User({
         name,
@@ -96,7 +115,6 @@ exports.signup = async (req, res) => {
         await sendOTPEmail(email, otp);
     } catch (mailError) {
         console.error("Mail Error:", mailError.message);
-        // We still return success for signup, but notify about email delay if needed
     }
 
     res.status(201).json({
@@ -123,18 +141,17 @@ exports.verifyOTP = async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
-    await user.save();
-
-    await sendWelcomeEmail(user.email, user.name);
-
+    
     const { accessToken, refreshToken } = generateTokens(user);
     user.refreshToken = refreshToken;
     await user.save();
 
+    await sendWelcomeEmail(user.email, user.name);
+
+    setTokenCookies(res, accessToken, refreshToken);
+
     res.json({
       message: "Email verified successfully!",
-      token: accessToken,
-      refreshToken,
       user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
   } catch (error) {
@@ -166,10 +183,10 @@ exports.login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
+    setTokenCookies(res, accessToken, refreshToken);
+
     res.json({
       message: "Login successful",
-      token: accessToken,
-      refreshToken,
       user: { id: user._id, name: user.name, email: user.email, role: user.role }
     });
 
@@ -182,23 +199,50 @@ exports.login = async (req, res) => {
 // ================= REFRESH TOKEN =================
 exports.refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ message: "Refresh token required" });
 
+    // Find user by refresh token (for rotation detection)
     const user = await User.findOne({ refreshToken });
-    if (!user) return res.status(403).json({ message: "Invalid refresh token" });
+    
+    // IF REFRESH TOKEN IS NOT FOUND: It might be a reuse of an old token (stolen!)
+    if (!user) {
+        // Find if any user has this token in their history (if we tracked history)
+        // For now, if current token doesn't match, we assume it's invalid.
+        return res.status(403).json({ message: "Invalid refresh token" });
+    }
 
-    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET || "refreshsecret", (err, decoded) => {
-      if (err) return res.status(403).json({ message: "Expired refresh token" });
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET || "refreshsecret", async (err, decoded) => {
+      if (err) return res.status(403).json({ message: "Expired or invalid refresh token" });
       
-      const accessToken = jwt.sign(
-        { id: user._id, role: user.role },
-        process.env.JWT_SECRET || "secretkey",
-        { expiresIn: "15m" }
-      );
+      // ROTATION: Generate NEW tokens
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokens(user);
+      
+      // Update DB with NEW refresh token
+      user.refreshToken = newRefreshToken;
+      await user.save();
 
-      res.json({ token: accessToken });
+      // Set NEW cookies
+      setTokenCookies(res, newAccessToken, newRefreshToken);
+
+      res.json({ message: "Token refreshed" });
     });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ================= LOGOUT =================
+exports.logout = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (refreshToken) {
+        await User.findOneAndUpdate({ refreshToken }, { refreshToken: null });
+    }
+    
+    res.clearCookie("token");
+    res.clearCookie("refreshToken");
+    res.json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }

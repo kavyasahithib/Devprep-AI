@@ -12,14 +12,16 @@ import {
   BrainCircuit,
   Bug,
   FileSearch,
-  Layout
+  Layout,
+  ShieldCheck
 } from 'lucide-react';
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const role = localStorage.getItem('role');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = user?.role || 'user';
 
   const menuItems = [
     { name: 'Home', icon: <LayoutDashboard size={20} />, path: '/dashboard' },
@@ -34,12 +36,23 @@ const Sidebar = () => {
   ];
 
   if (role === 'admin') {
+    menuItems.push({ name: 'System Status', icon: <ShieldCheck size={20} />, path: '/verified-status' });
     menuItems.push({ name: 'Admin Panel', icon: <Settings size={20} />, path: '/admin' });
   }
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+  const logout = async () => {
+    try {
+      const API = require("../services/api").default;
+      await API.post('/auth/logout');
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      localStorage.removeItem('user');
+      localStorage.removeItem('role');
+      localStorage.removeItem('token'); // Cleanup old legacy token if any
+      localStorage.removeItem('refreshToken');
+      navigate('/');
+    }
   };
 
   return (

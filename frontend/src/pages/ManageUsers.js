@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "../services/api";
 import { 
   Users, 
   Trash2, 
@@ -22,10 +22,7 @@ function ManageUsers() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/users", {
-          headers: { Authorization: "Bearer " + token }
-        });
+        const res = await API.get("/users");
         setUsers(res.data);
       } catch (error) {
         console.error("Failed to fetch users:", error);
@@ -36,28 +33,22 @@ function ManageUsers() {
     fetchUsers();
   }, []);
 
-  const handleRoleChange = async (userId, currentRole) => {
+  const handleRoleChange = async (id, currentRole) => {
     const newRole = currentRole === "user" ? "admin" : "user";
     if (!window.confirm(`Are you sure you want to make this user an ${newRole}?`)) return;
     try {
-      const token = localStorage.getItem("token");
-      await axios.put(`http://localhost:5000/api/users/${userId}/role`, { role: newRole }, {
-        headers: { Authorization: "Bearer " + token }
-      });
-      setUsers(users.map(u => u._id === userId ? { ...u, role: newRole } : u));
+      await API.patch(`/users/${id}`, { role: newRole });
+      setUsers(users.map(u => u._id === id ? { ...u, role: newRole } : u));
     } catch (error) {
       alert("Failed to update user role");
     }
   };
 
-  const handleDelete = async (userId) => {
+  const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to permanently delete this user?")) return;
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:5000/api/users/${userId}`, {
-        headers: { Authorization: "Bearer " + token }
-      });
-      setUsers(users.filter(u => u._id !== userId));
+      await API.delete(`/users/${id}`);
+      setUsers(users.filter(u => u._id !== id));
     } catch (error) {
       alert("Failed to delete user");
     }

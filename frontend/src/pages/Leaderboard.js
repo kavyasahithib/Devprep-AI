@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 import { 
   Trophy, 
   User, 
@@ -16,7 +16,7 @@ function Leaderboard() {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/leaderboard");
+        const res = await API.get("/submissions/leaderboard");
         const sorted = (res.data || []).sort((a,b) => b.solved - a.solved);
         setUsers(sorted);
       } catch (error) {

@@ -11,6 +11,8 @@ if (missingEnv.length > 0 || aiKeyMissing) {
   if (aiKeyMissing) console.error("- GOOGLE_API_KEY (or GEMINI_API_KEY)");
   process.exit(1);
 }
+const http = require("http");
+const { Server } = require("socket.io");
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
@@ -24,18 +26,87 @@ const debugRoutes = require("./routes/debugRoutes");
 const passport = require("passport");
 require("./config/passportConfig");
 
-const app = express();
+const helmet = require("helmet");
+const mongoSanitize = require("./middleware/mongoSanitize");
+const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
 
-// Global Logger (Top-level)
-app.use((req, res, next) => {
-  console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url} - Auth: ${req.headers.authorization ? 'Present' : 'MISSING'}`);
-  next();
-});
+const app = express();
 
 connectDB();
 
-app.use(cors());
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createClient } = require("redis");
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // In production, specify frontend URL
+    methods: ["GET", "POST"]
+  }
+});
+
+// Redis Adapter setup
+const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://127.0.0.1:6379' });
+const subClient = pubClient.duplicate();
+
+Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log("Redis Adapter Connected horizontally scaling Socket.io!");
+}).catch(err => console.error("Redis Adapter Connection Error:", err));
+
+// Real-time Events
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("join-interview", (interviewId) => {
+    socket.join(interviewId);
+    console.log(`Socket ${socket.id} joined interview ${interviewId}`);
+  });
+
+  socket.on("typing", ({ interviewId, role }) => {
+    socket.to(interviewId).emit("user-typing", { role });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
+// Core Middleware
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
+app.use(helmet());
+app.use(mongoSanitize({
+  allowDots: true,
+  replaceWith: '_',
+}));
+
+// Elite Logger (Consolidated)
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const hasAuth = req.headers.authorization || (req.cookies && req.cookies.token);
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms) - Auth: ${hasAuth ? 'Present' : 'MISSING'}`);
+  });
+  next();
+});
+
+
+// Global Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -54,6 +125,6 @@ app.get("/", (req, res) => {
 
 const PORT = 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "../services/api";
 import { Editor } from "@monaco-editor/react";
 import { 
   FileSearch, 
@@ -21,13 +21,7 @@ function ExplainCode() {
     if (!code.trim()) return;
     setAnalyzing(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post("http://localhost:5000/api/submissions/explanation", {
-        code,
-        language: 'javascript'
-      }, {
-        headers: { Authorization: "Bearer " + token }
-      });
+      const res = await API.post("/submissions/explanation", { code, language: 'javascript' });
       setExplanation(res.data.explanation);
     } catch (error) {
       console.error("Explanation Error:", error);
@@ -102,13 +96,26 @@ function ExplainCode() {
                     {explanation}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-100">
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-100 p-8">
                     <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm">
                         <MessageSquare size={32} className="text-slate-300" />
                     </div>
-                    <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ready for analysis</p>
-                        <p className="text-slate-400 text-[11px] font-medium max-w-[200px] leading-relaxed">Paste your code in the editor to get a detailed line-by-line breakdown.</p>
+                    <div className="w-full">
+                        <p className="text-sm font-bold text-slate-600 mb-2">Ready for analysis</p>
+                        <p className="text-slate-400 text-[11px] font-medium max-w-[250px] leading-relaxed mx-auto mb-6">
+                            {code.trim() ? "Your code is ready. Click below to generate a detailed breakdown." : "Paste your code in the editor to get a detailed line-by-line breakdown."}
+                        </p>
+                        
+                        {code.trim() && (
+                            <button 
+                                onClick={handleExplain}
+                                disabled={analyzing}
+                                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 mx-auto w-full max-w-[200px]"
+                            >
+                                {analyzing ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                                <span>{analyzing ? "Analyzing..." : "Explain Code"}</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

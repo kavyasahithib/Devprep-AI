@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../services/api";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   Trash2, 
@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Plus
 } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
 
 function EditQuestion() {
   const { id } = useParams();
@@ -34,8 +33,8 @@ function EditQuestion() {
   useEffect(() => {
     const fetchQuestion = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/questions");
-        const q = res.data.find(item => item._id === id);
+        const res = await API.get(`/questions/${id}`);
+        const q = res.data;
         if (q) {
           setFormData({
             title: q.title || "",
@@ -80,13 +79,7 @@ function EditQuestion() {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.put(
-        `http://localhost:5000/api/questions/${id}`,
-        formData,
-        {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-        }
-      );
+      await API.put(`/questions/${id}`, formData);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {

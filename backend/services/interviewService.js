@@ -1,4 +1,4 @@
-const { generateWithFallback } = require("./aiService");
+const { generateWithFallback, generateStreamingContent } = require("./aiService");
 
 /**
  * Interview Logic Service
@@ -23,10 +23,14 @@ exports.startInterview = async (question) => {
   }
 };
 
-exports.processInterviewTurn = async (chatHistory, currentCode, question, lastUserMessage) => {
+exports.processInterviewTurn = async (chatHistory, currentCode, question, lastUserMessage, userMistakes = []) => {
   console.log('TRACE: processInterviewTurn called');
   const historyString = chatHistory.map(h => `${h.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${h.content}`).join('\n');
   
+  const mistakesContext = userMistakes.length > 0 
+    ? `\nCandidate's Previous Mistakes (Reference for nudging): \n${userMistakes.map(m => `- ${m.topic}: ${m.mistake}`).join('\n')}\nIf the candidate repeats these, give a more direct hint related to the best practice they missed.`
+    : "";
+
   const prompt = `You are a senior technical interviewer. 
   
   Context:
@@ -39,6 +43,7 @@ exports.processInterviewTurn = async (chatHistory, currentCode, question, lastUs
   ${currentCode || "(No code yet)"}
   
   Candidate's Last Message: "${lastUserMessage}"
+  ${mistakesContext}
   
   Your Task:
   - Respond to the candidate. 
@@ -51,6 +56,40 @@ exports.processInterviewTurn = async (chatHistory, currentCode, question, lastUs
   Keep your response concise (2-4 sentences).`;
 
   return await generateWithFallback(prompt);
+};
+
+exports.streamInterviewTurn = async (chatHistory, currentCode, question, lastUserMessage, userMistakes = []) => {
+  const historyString = chatHistory.map(h => `${h.role === 'interviewer' ? 'Interviewer' : 'Candidate'}: ${h.content}`).join('\n');
+  
+  const mistakesContext = userMistakes.length > 0 
+    ? `\nCandidate's Previous Mistakes (Reference for nudging): \n${userMistakes.map(m => `- ${m.topic}: ${m.mistake}`).join('\n')}\nIf the candidate repeats these, give a more direct hint related to the best practice they missed.`
+    : "";
+
+  const prompt = `You are a senior technical interviewer. 
+  
+  Context:
+  - Problem: ${question.title} (${question.difficulty})
+  - Description: ${question.description}
+  - Current Chat History:
+  ${historyString}
+  
+  Candidate's Current code:
+  ${currentCode || "(No code yet)"}
+  
+  Candidate's Last Message: "${lastUserMessage}"
+  ${mistakesContext}
+  
+  Your Task:
+  - Respond to the candidate. 
+  - If they are stuck, give a gentle nudge or ask a leading question.
+  - If they are proposing an approach, validate it or ask about edge cases (like empty input, large datasets).
+  - If they have written code, ask them to explain a specific part or consider time/space complexity.
+  - DO NOT give the full solution.
+  - Act naturally. If the candidate hasn't said much, ask them to walk you through their thought process.
+  
+  Keep your response concise (2-4 sentences).`;
+
+  return await generateStreamingContent(prompt);
 };
 
 exports.generateFinalAssessment = async (chatHistory, finalCode, question) => {

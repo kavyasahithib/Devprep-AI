@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -22,14 +22,7 @@ function Submissions() {
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/submissions/my-submissions",
-          {
-            headers: {
-              Authorization: "Bearer " + localStorage.getItem("token")
-            }
-          }
-        );
+        const res = await API.get("/submissions");
         setSubmissions(res.data);
       } catch (error) {
         console.error(error);

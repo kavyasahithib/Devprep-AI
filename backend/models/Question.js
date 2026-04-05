@@ -48,4 +48,7 @@ const questionSchema = new mongoose.Schema({
 
 });
 
+questionSchema.index({ difficulty: 1 });
+questionSchema.index({ companies: 1 });
+
 module.exports = mongoose.model("Question", questionSchema);

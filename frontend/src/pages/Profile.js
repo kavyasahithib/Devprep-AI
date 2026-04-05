@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 import { motion } from "framer-motion";
 import { 
   User, 
@@ -25,14 +25,9 @@ function Profile() {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const token = localStorage.getItem("token");
         const [profRes, activityRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/users/profile", {
-            headers: { Authorization: "Bearer " + token }
-          }),
-          axios.get("http://localhost:5000/api/submissions/activity", {
-            headers: { Authorization: "Bearer " + token }
-          })
+          API.get("/users/profile"),
+          API.get("/submissions/activity")
         ]);
         setProfile(profRes.data);
         setActivity(activityRes.data);
@@ -48,10 +43,7 @@ function Profile() {
   const runAiAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/submissions/analyze", {
-        headers: { Authorization: "Bearer " + token }
-      });
+      const res = await API.get("/submissions/analyze");
       setAiAnalysis(res.data);
     } catch (error) {
       console.error("Error running AI analysis:", error);
@@ -67,19 +59,14 @@ function Profile() {
     }
     setSyncing(true);
     try {
-      const token = localStorage.getItem("token");
-      const subRes = await axios.get("http://localhost:5000/api/submissions/my-submissions", {
-        headers: { Authorization: "Bearer " + token }
-      });
+      const subRes = await API.get("/submissions/my-submissions");
       const latestAccepted = subRes.data.find(s => s.status === "Accepted");
       if (!latestAccepted) {
         alert("No accepted solutions found to sync!");
         return;
       }
       
-      const res = await axios.post(`http://localhost:5000/api/submissions/sync/${latestAccepted._id}`, {}, {
-        headers: { Authorization: "Bearer " + token }
-      });
+      const res = await API.post(`/submissions/sync/${latestAccepted._id}`);
       alert(res.data.message);
     } catch (error) {
       alert(error.response?.data?.message || "Sync failed");
@@ -140,7 +127,7 @@ function Profile() {
                     if (profile.githubToken) {
                         handleGithubSync();
                     } else {
-                        window.location.href = "http://localhost:5000/api/users/github/auth?token=" + localStorage.getItem("token");
+                        window.location.href = "http://localhost:5000/api/users/github/auth";
                     }
                 }}
                 disabled={syncing}

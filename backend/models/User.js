@@ -68,7 +68,15 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+
+  lastMistakes: [
+    {
+      topic: String,
+      mistake: String,
+      date: { type: Date, default: Date.now }
+    }
+  ]
 
 });
 

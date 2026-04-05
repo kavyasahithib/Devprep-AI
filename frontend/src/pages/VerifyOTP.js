@@ -24,8 +24,8 @@ function VerifyOTP() {
 
     try {
       const res = await API.post("/auth/verify-otp", { email, otp });
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("refreshToken", res.data.refreshToken);
+      // Store user info and role, but tokens are now in secure cookies
+      localStorage.setItem("user", JSON.stringify(res.data.user));
       localStorage.setItem("role", res.data.user.role);
       navigate("/dashboard");
     } catch (err) {

@@ -25,7 +25,6 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem('token');
         const [subRes, dailyRes] = await Promise.all([
           API.get('/submissions/my-submissions'),
           API.get('/questions/daily')

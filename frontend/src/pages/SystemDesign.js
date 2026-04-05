@@ -12,7 +12,7 @@ import {
   Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import API from "../services/api";
 
 function SystemDesign() {
   const navigate = useNavigate();
@@ -31,12 +31,9 @@ function SystemDesign() {
     if (!thoughtProcess.trim()) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post("http://localhost:5000/api/submissions/explanation", {
-        code: `Topic: ${activeTopic.title}\n\nCandidate Thought Process:\n${thoughtProcess}`,
-        language: 'text'
-      }, {
-        headers: { Authorization: "Bearer " + token }
+      const res = await API.post("/submissions/system-design", { 
+        topic: activeTopic.title, 
+        thoughtProcess 
       });
       setEvaluation(res.data.explanation);
     } catch (error) {

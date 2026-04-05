@@ -3,8 +3,12 @@
 @tailwind utilities;
 
 @layer base {
-  html, body, #root {
-    background-color: #F8FAFC; /* Slate 50 */
+
+  html,
+  body,
+  #root {
+    background-color: #F8FAFC;
+    /* Slate 50 */
     @apply h-full min-h-screen text-slate-900;
     margin: 0;
     padding: 0;
@@ -32,8 +36,15 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fadeIn {

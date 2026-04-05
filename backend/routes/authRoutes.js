@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const passport = require("passport");
 const rateLimit = require("express-rate-limit");
-const { signup, login, verifyOTP, refreshToken, forgotPassword, resetPassword } = require("../controllers/authController");
+const { signup, login, logout, verifyOTP, refreshToken, forgotPassword, resetPassword } = require("../controllers/authController");
 
 // Rate limiter for Auth routes
 const authLimiter = rateLimit({
@@ -14,6 +14,7 @@ const authLimiter = rateLimit({
 router.post("/signup", authLimiter, signup);
 router.post("/verify-otp", authLimiter, verifyOTP);
 router.post("/login", authLimiter, login);
+router.post("/logout", logout);
 router.post("/refresh-token", refreshToken);
 router.post("/forgot-password", authLimiter, forgotPassword);
 router.post("/reset-password", authLimiter, resetPassword);
@@ -44,8 +45,23 @@ router.get(
     user.refreshToken = refreshToken;
     await user.save();
 
-    // Redirect to frontend with tokens
-    res.redirect(`http://localhost:3000?token=${accessToken}&refreshToken=${refreshToken}`);
+    // Set secure cookies
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("token", accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "strict" : "lax",
+      maxAge: 15 * 60 * 1000,
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "strict" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    // Redirect to frontend (no token in URL)
+    res.redirect(`http://localhost:3000/dashboard`);
   }
 );
 

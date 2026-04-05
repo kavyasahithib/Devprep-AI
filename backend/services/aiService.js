@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
+const { getCache, setCache, generateKey } = require('./cacheService');
 
 const key = (process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "").trim();
 // Use the default API version (v1beta for now, which includes latest stable and experimental models)
@@ -25,6 +26,13 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * Robust AI generation with model fallback
  */
 const generateWithFallback = async (prompt, defaultModel = 'gemini-2.5-flash') => {
+  const cacheKey = generateKey(prompt);
+  const cachedResult = await getCache(cacheKey);
+  if (cachedResult) {
+    console.log(`Cache HIT for prompt: ${cacheKey.slice(0, 8)}...`);
+    return cachedResult;
+  }
+
   let lastError = null;
   const modelsToTry = [defaultModel, ...FALLBACK_MODELS.filter(m => m !== defaultModel)];
   
@@ -42,25 +50,49 @@ const generateWithFallback = async (prompt, defaultModel = 'gemini-2.5-flash') =
       if (!text) throw new Error("Empty response from AI");
       
       console.log(`Success with model: ${modelName}`);
-      return text.trim();
+      const trimmedText = text.trim();
+      await setCache(cacheKey, trimmedText); // Cache the successful result
+      return trimmedText;
     } catch (error) {
       console.error(`ERROR with model ${modelName}:`, error.message);
       lastError = error;
-      // If we hit a 429 quota error, apply a small backoff before trying the next model
       if (error.message.includes('429') || error.message.includes('quota')) {
-        await sleep(1500); // 1.5s delay to prevent spamming generic 429s
+        await sleep(1500);
       }
     }
   }
   
   console.error("All AI models failed. Last error:", lastError?.message);
-  // Instead of throwing and crashing requests, return a generic unavailable message
-  // that can be gracefully parsed/displayed by the caller.
   const reason = lastError?.message || "Unknown error";
   return `AI Service is temporarily unavailable due to high traffic or quota limits. Please try again later. (Error: ${reason})`;
 };
 
 exports.generateWithFallback = generateWithFallback;
+
+/**
+ * Streaming version of AI generation
+ */
+const generateStreamingContent = async (prompt, defaultModel = 'gemini-2.5-flash') => {
+  const modelsToTry = [defaultModel, ...FALLBACK_MODELS.filter(m => m !== defaultModel)];
+  
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const modelName = modelsToTry[i];
+    try {
+      console.log(`Attempting streaming with model: ${modelName}...`);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContentStream(prompt);
+      return result.stream; // Returns an async iterable
+    } catch (error) {
+      console.error(`Streaming ERROR with model ${modelName}:`, error.message);
+      if (i === modelsToTry.length - 1) throw error;
+      if (error.message.includes('429') || error.message.includes('quota')) {
+        await sleep(1500);
+      }
+    }
+  }
+};
+
+exports.generateStreamingContent = generateStreamingContent;
 
 exports.generateHints = async (question) => {
   try {
@@ -94,24 +126,26 @@ Format as a numbered list.`;
   }
 };
 
-exports.reviewCode = async (code, question, language) => {
+exports.reviewCode = async (code, question, language, userMistakes = []) => {
   try {
-    const prompt = `Review this ${language} code submission for the problem:
+    const mistakesContext = userMistakes.length > 0 
+      ? `\nFocus Area (Candidate's Previous Mistakes): \n${userMistakes.map(m => `- ${m.topic}: ${m.mistake}`).join('\n')}\nPay special attention if they repeat these mistakes.`
+      : "";
 
-Problem: ${question.title}
-Description: ${question.description}
+    const prompt = `You are a senior code reviewer at a top tech company. 
+Review this ${language} solution for the problem: "${question.title}".
+Problem Description: ${question.description}
 
-Code:
+Candidate's Code:
 ${code}
+${mistakesContext}
 
-Provide:
-1. Mistakes or issues found
-2. Suggestions for improvement (time/space optimization)
-3. Language-Specific Tips: Provide deep-dive optimization tips for ${language} (e.g., JVM tuning for Java, GIL considerations for Python, memory management for C++).
-4. Overall feedback
+Provide a constructive code review focusing on:
+1. Correctness and edge cases.
+2. Time and Space complexity.
+3. Code quality, readability, and idiomatic ${language} patterns.
 
-
-Be constructive and helpful. Keep it concise.`;
+Keep your response professional and helpful. Use markdown for code snippets. Keep it around 3-4 paragraphs.`;
 
     console.log('Calling Gemini API for code review...');
     return await generateWithFallback(prompt);
@@ -163,5 +197,25 @@ Be precise and explain your reasoning. Keep it concise.`;
   } catch (error) {
     console.error('Error analyzing complexity:', error.message);
     return 'Complexity analysis failed. Please try again.';
+  }
+};
+
+exports.summarizeMistakes = async (review) => {
+  const prompt = `Based on this code review:
+  "${review}"
+  
+  Identify the top 1-2 core technical mistakes or poor practices mentioned.
+  Return a JSON array of objects: [{"topic": "...", "mistake": "..."}].
+  Topics should be short (e.g., "Time Complexity", "Error Handling", "Async/Await").
+  Mistakes should be concise (1 sentence).
+  Return ONLY the JSON array.`;
+
+  const responseText = await generateWithFallback(prompt);
+  try {
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    return JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+  } catch (e) {
+    console.error("Failed to parse mistake summary JSON:", responseText);
+    return [];
   }
 };

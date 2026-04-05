@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { 
   Search, 
@@ -28,21 +28,16 @@ function Questions() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
         const [qRes, sRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/questions"),
-          token ? axios.get("http://localhost:5000/api/submissions/solved", {
-            headers: { Authorization: `Bearer ${token}` }
-          }) : Promise.resolve({ data: [] })
+          API.get("/questions"),
+          API.get("/submissions").catch(() => ({ data: [] }))
         ]);
 
         setQuestions(qRes.data);
-        setSolvedIds(new Set(sRes.data));
+        setSolvedIds(new Set(sRes.data.map(s => s.questionId)));
 
-        if (token) {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          setIsAdmin(payload.role === "admin");
-        }
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        setIsAdmin(user?.role === "admin");
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -55,9 +50,7 @@ function Questions() {
   const deleteQuestion = async (id) => {
     if (!window.confirm("Are you sure you want to delete this question?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/questions/${id}`, {
-        headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-      });
+      await API.delete(`/questions/${id}`);
       setQuestions(questions.filter(q => q._id !== id));
     } catch (error) {
       console.error(error);

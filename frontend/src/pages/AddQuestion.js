@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { 
   Plus, 
@@ -13,7 +13,6 @@ import {
   FileText,
   Loader2
 } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
 
 function AddQuestion() {
   const navigate = useNavigate();
@@ -54,13 +53,7 @@ function AddQuestion() {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(
-        "http://localhost:5000/api/questions/add",
-        formData,
-        {
-          headers: { Authorization: "Bearer " + localStorage.getItem("token") }
-        }
-      );
+      await API.post("/questions", formData);
       navigate("/questions");
     } catch (error) {
       console.error(error);

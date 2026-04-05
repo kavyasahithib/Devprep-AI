@@ -1,17 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "../services/api";
 import { Editor } from "@monaco-editor/react";
 import { 
-  Timer, 
   Send, 
-  ChevronLeft, 
-  BrainCircuit, 
-  Loader2, 
+  Code2, 
+  ChevronRight, 
+  MessageSquare, 
+  Play, 
+  Settings, 
+  Zap, 
+  Command,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Radio,
+  Cpu,
+  Loader2,
   CheckCircle2,
-  FileCode,
-  ArrowRight
+  ArrowRight,
+  ChevronLeft,
+  Timer,
+  BrainCircuit,
+  FileCode
 } from "lucide-react";
+import { initVimMode } from 'monaco-vim';
+import { io } from "socket.io-client";
 
 function MockInterview() {
   const { id } = useParams(); // Question ID
@@ -23,8 +38,145 @@ function MockInterview() {
   const [timeLeft, setTimeLeft] = useState(2700); // 45 minutes
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
   const [completed, setCompleted] = useState(false);
+  const [vimEnabled, setVimEnabled] = useState(false);
+  const [formatOnSave, setFormatOnSave] = useState(true);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const socketRef = useRef(null);
+  const editorRef = useRef(null);
+  const vimModeRef = useRef(null);
   const chatEndRef = useRef(null);
+  const statusNodeRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    socketRef.current = io("http://localhost:5000");
+
+    socketRef.current.on("connect", () => {
+      if (interview?._id) {
+        socketRef.current.emit("join-interview", interview._id);
+      }
+    });
+
+    socketRef.current.on("user-typing", ({ role }) => {
+        // Optional: show typing indicator for interviewer or candidate
+        console.log(`${role} is typing...`);
+    });
+
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [interview?._id]);
+
+  // Speech Recognition (STT) Initialization
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setMessage(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = () => setIsListening(false);
+      recognitionRef.current.onend = () => setIsListening(false);
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
+
+  const speakText = (text) => {
+    if (!voiceMode) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleEditorDidMount = (editor, monaco) => {
+    editorRef.current = editor;
+
+    // Register Custom Snippets (JavaScript)
+    monaco.languages.registerCompletionItemProvider('javascript', {
+      provideCompletionItems: (model, position) => {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+        const suggestions = [
+          {
+            label: 'clg',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            documentation: 'Console Log',
+            insertText: 'console.log(${1:obj});',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range,
+          },
+          {
+            label: 'tryc',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            documentation: 'Try Catch Block',
+            insertText: 'try {\n\t$1\n} catch (error) {\n\tconsole.error(error);\n}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range,
+          },
+          {
+            label: 'fn',
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            documentation: 'Function Template',
+            insertText: 'function ${1:name}(${2:params}) {\n\t$0\n}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            range: range,
+          },
+        ];
+        return { suggestions: suggestions };
+      },
+    });
+
+    // Add Auto-Format Action
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      if (formatOnSave) {
+        editor.getAction('editor.action.formatDocument').run();
+      }
+    });
+
+    // Setup Vim Mode Status Bar (Optional UI enrichment)
+    if (!statusNodeRef.current) {
+        statusNodeRef.current = document.createElement('div');
+        statusNodeRef.current.className = 'vim-status-bar absolute bottom-0 right-0 bg-[#252525] text-xs px-2 py-1 text-slate-400 z-50';
+        editor.getDomNode().parentElement.appendChild(statusNodeRef.current);
+    }
+  };
+
+  useEffect(() => {
+    if (editorRef.current && vimEnabled) {
+      vimModeRef.current = initVimMode(editorRef.current, statusNodeRef.current);
+    } else {
+      if (vimModeRef.current) {
+        vimModeRef.current.dispose();
+      }
+    }
+  }, [vimEnabled]);
 
   useEffect(() => {
     const initInterview = async () => {
@@ -34,11 +186,11 @@ function MockInterview() {
 
         if (!activeId || activeId === ":id") {
             // Fetch daily or first available question
-            const qRes = await axios.get("http://localhost:5000/api/questions/daily");
+            const qRes = await API.get("/questions/daily");
             if (qRes.data && qRes.data._id) {
                 activeId = qRes.data._id;
             } else {
-                const allRes = await axios.get("http://localhost:5000/api/questions");
+                const allRes = await API.get("/questions");
                 if (allRes.data && allRes.data.length > 0) {
                     activeId = allRes.data[0]._id;
                 }
@@ -48,13 +200,11 @@ function MockInterview() {
         if (!activeId) throw new Error("No questions available");
         
         // 1. Fetch Question
-        const qRes = await axios.get(`http://localhost:5000/api/questions/${activeId}`);
+        const qRes = await API.get(`/questions/${activeId}`);
         setQuestion(qRes.data);
         
         // 2. Start Interview Session
-        const intRes = await axios.post("http://localhost:5000/api/interview/start", { questionId: activeId }, {
-          headers: { Authorization: "Bearer " + token }
-        });
+        const intRes = await API.post("/interview/start", { questionId: activeId });
         setInterview(intRes.data);
         
         // 3. Set Code Template
@@ -93,15 +243,68 @@ function MockInterview() {
     const userMsg = message;
     setMessage("");
 
+    // Add user message to UI immediately
+    setInterview(prev => ({
+        ...prev,
+        chatHistory: [...prev.chatHistory, { role: "user", content: userMsg }]
+    }));
+
+    // Emit typing event
+    socketRef.current?.emit("typing", { interviewId: interview._id, role: "candidate" });
+
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(`http://localhost:5000/api/interview/${interview._id}/turn`, {
-        message: userMsg,
-        code
-      }, {
-        headers: { Authorization: "Bearer " + token }
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/interview/${interview._id}/turn`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Support secure cookies
+        body: JSON.stringify({ message: userMsg, code, stream: true })
       });
-      setInterview(res.data);
+
+      if (!response.ok) throw new Error("Network response was not ok");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let currentAssistantMessage = "";
+
+      // Add a placeholder for the assistant message
+      setInterview(prev => ({
+          ...prev,
+          chatHistory: [...prev.chatHistory, { role: "interviewer", content: "" }]
+      }));
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                try {
+                    const data = JSON.parse(line.slice(6));
+                    if (data.chunk) {
+                        currentAssistantMessage += data.chunk;
+                        // Update the last message in history iteratively
+                        setInterview(prev => {
+                            const newHistory = [...prev.chatHistory];
+                            newHistory[newHistory.length - 1].content = currentAssistantMessage;
+                            return { ...prev, chatHistory: newHistory };
+                        });
+                    }
+                    if (data.done) {
+                        setInterview(data.interview);
+                        // Speak if voice mode is on
+                        speakText(currentAssistantMessage);
+                    }
+                } catch (e) {
+                    // Ignore parse errors for incomplete JSON chunks
+                }
+            }
+        }
+      }
     } catch (error) {
       console.error("Chat Error:", error);
     } finally {
@@ -113,10 +316,7 @@ function MockInterview() {
     if (window.confirm("Are you sure you want to end this interview?")) {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.post(`http://localhost:5000/api/interview/${interview._id}/complete`, { code }, {
-          headers: { Authorization: "Bearer " + token }
-        });
+        const res = await API.post(`/interview/${interview._id}/complete`, { code });
         setInterview(res.data);
         setCompleted(true);
       } catch (error) {
@@ -204,6 +404,36 @@ function MockInterview() {
         </div>
 
         <div className="flex items-center space-x-6">
+          {/* Editor Settings */}
+          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200 mr-2">
+            <button 
+                onClick={() => setVoiceMode(!voiceMode)}
+                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${voiceMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                title="Toggle Voice Mode (AI will speak)"
+            >
+                {voiceMode ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                <span className="text-[10px] font-bold">VOICE</span>
+            </button>
+            <div className="w-px h-4 bg-slate-200 mx-1"></div>
+            <button 
+                onClick={() => setVimEnabled(!vimEnabled)}
+                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${vimEnabled ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                title="Toggle Vim Mode"
+            >
+                <Command size={14} />
+                <span className="text-[10px] font-bold">VIM</span>
+            </button>
+            <div className="w-px h-4 bg-slate-200 mx-1"></div>
+            <button 
+                onClick={() => setFormatOnSave(!formatOnSave)}
+                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${formatOnSave ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                title="Auto-format on Save (Ctrl+S)"
+            >
+                <Zap size={14} />
+                <span className="text-[10px] font-bold">FORMAT</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
             <Timer size={18} className={timeLeft < 300 ? "text-rose-500 animate-pulse" : "text-indigo-600"} />
             <span className={`text-lg font-bold tabular-nums ${timeLeft < 300 ? "text-rose-600" : "text-slate-900"}`}>
@@ -236,8 +466,15 @@ function MockInterview() {
             {interview?.chatHistory.map((h, i) => (
               <div 
                 key={i}
-                className={`flex ${h.role === 'interviewer' ? 'justify-start' : 'justify-end'}`}
+                className={`flex gap-3 ${h.role === 'interviewer' ? 'justify-start' : 'justify-end'}`}
               >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  h.role === "interviewer" 
+                    ? "bg-indigo-600 shadow-md" 
+                    : "bg-emerald-600 shadow-md"
+                } ${h.role === "interviewer" && isSpeaking ? "animate-pulse ring-4 ring-indigo-200" : ""}`}>
+                  {h.role === "interviewer" ? <Cpu size={16} className="text-white" /> : <div className="text-[10px] font-bold text-white uppercase">Me</div>}
+                </div>
                 <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm relative ${
                   h.role === 'interviewer' 
                     ? 'bg-slate-100 border border-slate-200 text-slate-800' 
@@ -250,24 +487,39 @@ function MockInterview() {
             <div ref={chatEndRef} />
           </div>
 
-          <div className="p-4 bg-white border-t border-slate-100 flex items-end gap-2">
-            <textarea
+          <div className="p-6 border-t border-slate-200 bg-white">
+          <div className="flex items-center space-x-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-400 transition-all shadow-inner">
+            <button
+                onClick={toggleListening}
+                className={`p-3 rounded-xl transition-all ${isListening ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-400 hover:bg-slate-200'}`}
+                title={isListening ? "Listening..." : "Voice Input"}
+            >
+                {isListening ? <Mic size={20} /> : <Mic size={20} />}
+            </button>
+            <input
+              type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-              placeholder="Type your response..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all resize-none"
-              rows={2}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder={isListening ? "Listening to your voice..." : "Type or speak your message..."}
+              className="flex-1 bg-transparent border-none outline-none py-3 text-sm font-medium placeholder-slate-400"
             />
-            <button 
+            <button
               onClick={handleSend}
               disabled={sending || !message.trim()}
-              className="p-3.5 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 disabled:opacity-50 transition-all"
+              className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all shadow-md active:scale-95"
             >
               <Send size={18} />
             </button>
           </div>
+          {isSpeaking && (
+            <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest animate-pulse">
+                <Radio size={12} />
+                <span>AI Interviewer is speaking...</span>
+            </div>
+          )}
         </div>
+      </div>
 
         {/* Right: Code Editor Pane */}
         <div className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative">
@@ -284,6 +536,7 @@ function MockInterview() {
               language="javascript"
               value={code}
               onChange={(v) => setCode(v || "")}
+              onMount={handleEditorDidMount}
               options={{
                 fontSize: 15,
                 minimap: { enabled: false },
