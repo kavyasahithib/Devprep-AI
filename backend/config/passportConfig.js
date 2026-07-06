@@ -47,6 +47,11 @@ if (process.env.GOOGLE_CLIENT_ID) {
 
 // We don't use sessions, but Passport requires these defined
 passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser((id, done) => {
-  User.findById(id, (err, user) => done(err, user));
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
 });

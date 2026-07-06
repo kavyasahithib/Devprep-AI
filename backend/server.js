@@ -41,8 +41,9 @@ const { createClient } = require("redis");
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // In production, specify frontend URL
-    methods: ["GET", "POST"]
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -75,7 +76,7 @@ io.on("connection", (socket) => {
 
 // Core Middleware
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true,
 }));
 app.use(express.json());
@@ -85,6 +86,9 @@ app.use(mongoSanitize({
   allowDots: true,
   replaceWith: '_',
 }));
+
+const csrfMiddleware = require("./middleware/csrfMiddleware");
+app.use(csrfMiddleware);
 
 // Elite Logger (Consolidated)
 app.use((req, res, next) => {
@@ -99,15 +103,17 @@ app.use((req, res, next) => {
 
 
 // Global Rate Limiting
+const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: isDev ? 10000 : 100,
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use(limiter);
 
+const settingsRoutes = require("./routes/settingsRoutes");
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/questions", questionRoutes);
@@ -115,6 +121,18 @@ app.use("/api/submissions", submissionRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/interview", interviewRoutes);
 app.use("/api/debug", debugRoutes);
+app.use("/api/settings", settingsRoutes);
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("\x1b[31m%s\x1b[0m", `[ERROR] ${err.stack || err.message}`);
+  
+  const statusCode = err.status || 500;
+  res.status(statusCode).json({
+    message: statusCode === 500 ? "Internal Server Error" : err.message,
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
 
 
 
@@ -123,7 +141,7 @@ app.get("/", (req, res) => {
   res.send("DevPrep AI Backend Running");
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);

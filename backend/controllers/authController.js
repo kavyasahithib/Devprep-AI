@@ -6,7 +6,7 @@ const { sendOTPEmail, sendWelcomeEmail } = require("../services/nodeMailerServic
 // Helper: Generate Tokens
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
-    { id: user._id, role: user.role },
+    { id: user._id, role: user.role, email: user.email },
     process.env.JWT_SECRET || "secretkey",
     { expiresIn: "15m" }
   );
@@ -111,14 +111,16 @@ exports.signup = async (req, res) => {
 
     await user.save();
     
+    console.log("\x1b[33m%s\x1b[0m", `[OTP DEVELOPER ALERT] Generated OTP for ${email} is: ${otp}`);
+    
     try {
         await sendOTPEmail(email, otp);
     } catch (mailError) {
-        console.error("Mail Error:", mailError.message);
+        console.error("Mail Error: Failed to transmit OTP email. Connection rejected by SMTP provider. Details:", mailError.message);
     }
 
     res.status(201).json({
-      message: "OTP sent to your email. Please verify to complete registration.",
+      message: "OTP sent to your email. Please verify to complete registration. (For development, check the backend console log for the code)",
       email
     });
 
@@ -141,18 +143,16 @@ exports.verifyOTP = async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
-    
-    const { accessToken, refreshToken } = generateTokens(user);
-    user.refreshToken = refreshToken;
     await user.save();
 
-    await sendWelcomeEmail(user.email, user.name);
-
-    setTokenCookies(res, accessToken, refreshToken);
+    try {
+        await sendWelcomeEmail(user.email, user.name);
+    } catch (mailError) {
+        console.error("Welcome email failed to send:", mailError.message);
+    }
 
     res.json({
-      message: "Email verified successfully!",
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      message: "Email verified successfully! Please log in to continue."
     });
   } catch (error) {
     console.error(error);
@@ -164,6 +164,24 @@ exports.verifyOTP = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Check if maintenance mode is active
+    const Settings = require("../models/Settings");
+    const settings = await Settings.findOne();
+    let isMaintenanceActive = false;
+    if (settings && settings.maintenanceMode) {
+      const now = new Date();
+      const start = settings.maintenanceStartDate ? new Date(settings.maintenanceStartDate) : null;
+      const end = settings.maintenanceEndDate ? new Date(settings.maintenanceEndDate) : null;
+      if ((!start || now >= start) && (!end || now <= end)) {
+        isMaintenanceActive = true;
+      }
+    }
+
+    if (isMaintenanceActive && email.toLowerCase() !== "sailokeshnalabothu@gmail.com") {
+      return res.status(403).json({ message: "Platform is currently under maintenance. Only the administrator can log in." });
+    }
+
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -267,9 +285,16 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     const { sendResetEmail } = require("../services/nodeMailerService");
-    await sendResetEmail(email, resetToken);
+    const resetUrl = `http://localhost:3000/reset-password?token=${resetToken}`;
+    console.log("\x1b[33m%s\x1b[0m", `[PASSWORD RESET DEVELOPER ALERT] Reset Link for ${email} is: ${resetUrl}`);
+    
+    try {
+        await sendResetEmail(email, resetToken);
+    } catch (mailError) {
+        console.error("Mail Error: Failed to transmit password reset email. Connection rejected by SMTP provider. Details:", mailError.message);
+    }
 
-    res.json({ message: "Password reset link sent to your email." });
+    res.json({ message: "Password reset link sent to your email. (For development, check the backend console log for the link)" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

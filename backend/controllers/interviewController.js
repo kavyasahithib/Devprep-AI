@@ -5,22 +5,30 @@ const { startInterview, processInterviewTurn, generateFinalAssessment, streamInt
 
 exports.initializeInterview = async (req, res) => {
   try {
-    const { questionId } = req.body;
-    const question = await Question.findById(questionId);
+    const { questionId, topic } = req.body;
     
-    if (!question) return res.status(404).json({ message: "Question not found" });
-
-    const initialMessage = await startInterview(question);
+    let initialMessage = "";
+    let question = null;
+    
+    if (topic) {
+      initialMessage = await startInterview(null, topic);
+    } else {
+      question = await Question.findById(questionId);
+      if (!question) return res.status(404).json({ message: "Question not found" });
+      initialMessage = await startInterview(question, null);
+    }
 
     const interview = new Interview({
       userId: req.user.id,
-      questionId,
+      questionId: question ? question._id : null,
+      topic: topic || null,
       chatHistory: [{ role: "interviewer", content: initialMessage }]
     });
 
     await interview.save();
     res.status(201).json(interview);
   } catch (error) {
+    console.error("Failed to start interview:", error);
     res.status(500).json({ message: "Failed to start interview" });
   }
 };
@@ -32,6 +40,11 @@ exports.handleTurn = async (req, res) => {
     
     const interview = await Interview.findById(interviewId).populate("questionId");
     if (!interview) return res.status(404).json({ message: "Interview not found" });
+
+    // Verify interview ownership to prevent IDOR
+    if (interview.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Access denied: You do not own this interview session" });
+    }
 
     // Fetch user mistakes for AI memory
     const user = await User.findById(req.user.id).select('lastMistakes');
@@ -48,7 +61,8 @@ exports.handleTurn = async (req, res) => {
         code, 
         interview.questionId, 
         message,
-        userMistakes
+        userMistakes,
+        interview.topic
       );
       interview.chatHistory.push({ role: "interviewer", content: nextInterviewerMessage });
       if (code) interview.codeAtCompletion = code;
@@ -66,7 +80,8 @@ exports.handleTurn = async (req, res) => {
       code,
       interview.questionId,
       message,
-      userMistakes
+      userMistakes,
+      interview.topic
     );
 
     let fullContent = "";
@@ -103,10 +118,15 @@ exports.completeInterview = async (req, res) => {
     const interview = await Interview.findById(interviewId).populate("questionId");
     if (!interview) return res.status(404).json({ message: "Interview not found" });
 
-    const assessment = await generateFinalAssessment(interview.chatHistory, code, interview.questionId);
+    // Verify interview ownership to prevent IDOR
+    if (interview.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Access denied: You do not own this interview session" });
+    }
+
+    const assessment = await generateFinalAssessment(interview.chatHistory, code, interview.questionId, interview.topic);
 
     interview.status = "completed";
-    interview.codeAtCompletion = code;
+    interview.codeAtCompletion = code || "";
     interview.feedback = assessment;
     interview.endTime = Date.now();
 

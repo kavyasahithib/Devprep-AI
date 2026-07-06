@@ -1,329 +1,380 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import API from "../services/api";
-import { Editor } from "@monaco-editor/react";
+import RobotAvatar from "../components/RobotAvatar";
 import { 
-  Send, 
-  Code2, 
-  ChevronRight, 
-  MessageSquare, 
-  Play, 
-  Settings, 
-  Zap, 
-  Command,
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
-  Radio,
-  Cpu,
-  Loader2,
-  CheckCircle2,
-  ArrowRight,
-  ChevronLeft,
-  Timer,
-  BrainCircuit,
-  FileCode
+  Mic, 
+  MicOff, 
+  Volume2, 
+  VolumeX, 
+  ChevronLeft, 
+  BrainCircuit, 
+  Timer, 
+  Activity, 
+  Cpu, 
+  CheckCircle2, 
+  ArrowRight, 
+  User,
+  Pause,
+  Loader2
 } from "lucide-react";
-import { initVimMode } from 'monaco-vim';
-import { io } from "socket.io-client";
+
+const INTERVIEW_TOPICS = [
+  {
+    id: "python",
+    title: "Python Engineering",
+    desc: "OOP paradigms, memory handling, generators, list comprehensions, decorators, and GIL details.",
+    icon: "🐍",
+    color: "from-blue-500/10 to-amber-500/10 border-blue-500/20 text-blue-400"
+  },
+  {
+    id: "javascript",
+    title: "JavaScript & Frontend",
+    desc: "Closures, event loops, promises, React reconciliation engine, rendering performance, and hooks.",
+    icon: "🌐",
+    color: "from-yellow-500/10 to-amber-600/10 border-yellow-500/20 text-yellow-400"
+  },
+  {
+    id: "sql",
+    title: "Databases & SQL",
+    desc: "Normalization, ACID parameters, query optimizations, indexes, NoSQL vs relational design.",
+    icon: "🗄️",
+    color: "from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-400"
+  },
+  {
+    id: "system-design",
+    title: "System Design",
+    desc: "Scalability patterns, caching layers, load balancers, sharding, and latency optimization.",
+    icon: "🏗️",
+    color: "from-purple-500/10 to-indigo-500/10 border-purple-500/20 text-purple-400"
+  },
+  {
+    id: "behavioral",
+    title: "Behavioral & HR",
+    desc: "STAR method behavioral questions, conflict resolution, leadership principles, and cultural fit.",
+    icon: "🤝",
+    color: "from-rose-500/10 to-pink-500/10 border-rose-500/20 text-rose-400"
+  }
+];
 
 function MockInterview() {
-  const { id } = useParams(); // Question ID
   const navigate = useNavigate();
+  
+  // Selection vs Interview State
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+
+  // Core session states
   const [interview, setInterview] = useState(null);
-  const [question, setQuestion] = useState(null);
-  const [code, setCode] = useState("");
-  const [message, setMessage] = useState("");
   const [timeLeft, setTimeLeft] = useState(2700); // 45 minutes
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [submissions, setSubmissions] = useState([]);
   const [completed, setCompleted] = useState(false);
-  const [vimEnabled, setVimEnabled] = useState(false);
-  const [formatOnSave, setFormatOnSave] = useState(true);
-  const [voiceMode, setVoiceMode] = useState(false);
+
+  // Audio & Voice control states
+  const [voiceMode, setVoiceMode] = useState(true);
+  const [autoListen, setAutoListen] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [transcribedText, setTranscribedText] = useState("");
 
-  const socketRef = useRef(null);
-  const editorRef = useRef(null);
-  const vimModeRef = useRef(null);
-  const chatEndRef = useRef(null);
-  const statusNodeRef = useRef(null);
   const recognitionRef = useRef(null);
+  const startListeningTimeoutRef = useRef(null);
+  const silenceTimeoutRef = useRef(null);
+  const accumulatedSpeechRef = useRef("");
+  const handleSendRef = useRef(null);
+  
+  // Synchronized refs for speech synthesizers
+  const interviewRef = useRef(null);
+  const autoListenRef = useRef(true);
+  const completedRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const isListeningRef = useRef(false);
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:5000");
+    interviewRef.current = interview;
+  }, [interview]);
 
-    socketRef.current.on("connect", () => {
-      if (interview?._id) {
-        socketRef.current.emit("join-interview", interview._id);
-      }
-    });
+  useEffect(() => {
+    autoListenRef.current = autoListen;
+  }, [autoListen]);
 
-    socketRef.current.on("user-typing", ({ role }) => {
-        // Optional: show typing indicator for interviewer or candidate
-        console.log(`${role} is typing...`);
-    });
-
-    return () => {
-      socketRef.current.disconnect();
-    };
-  }, [interview?._id]);
+  useEffect(() => {
+    completedRef.current = completed;
+  }, [completed]);
 
   // Speech Recognition (STT) Initialization
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
 
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setMessage(transcript);
-        setIsListening(false);
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+        isListeningRef.current = true;
+        setTranscribedText("");
+        accumulatedSpeechRef.current = "";
       };
 
-      recognitionRef.current.onerror = () => setIsListening(false);
-      recognitionRef.current.onend = () => setIsListening(false);
+      recognitionRef.current.onresult = (event) => {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcriptText = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcriptText + " ";
+          } else {
+            interimTranscript += transcriptText;
+          }
+        }
+
+        if (finalTranscript) {
+          accumulatedSpeechRef.current += finalTranscript;
+        }
+
+        const fullSpeech = (accumulatedSpeechRef.current + interimTranscript).trim();
+        setTranscribedText(fullSpeech);
+
+        // Reset silence detection timeout
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+        }
+
+        // Wait 3.5 seconds of complete silence before submitting the turn
+        silenceTimeoutRef.current = setTimeout(() => {
+          const finalAnswer = (accumulatedSpeechRef.current + interimTranscript).trim();
+          if (finalAnswer.length > 2) {
+            stopListening();
+            handleSendRef.current?.(finalAnswer);
+          }
+        }, 3500);
+      };
+
+      recognitionRef.current.onerror = (e) => {
+        console.error("Speech Recognition Error:", e);
+        if (e.error === 'no-speech') {
+          return; // Ignore transient no-speech triggers to keep mic alive
+        }
+        setIsListening(false);
+        isListeningRef.current = false;
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+        isListeningRef.current = false;
+        
+        // If recognition stops but there is remaining text, submit it
+        if (silenceTimeoutRef.current) {
+          clearTimeout(silenceTimeoutRef.current);
+        }
+        
+        const finalAnswer = accumulatedSpeechRef.current.trim();
+        if (finalAnswer.length > 2 && !isSpeakingRef.current) {
+          handleSendRef.current?.(finalAnswer);
+        }
+      };
     }
+
+    return () => {
+      window.speechSynthesis.cancel();
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+      if (startListeningTimeoutRef.current) {
+        clearTimeout(startListeningTimeoutRef.current);
+      }
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+    };
   }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (!interviewStarted || timeLeft <= 0 || completed) return;
+    const interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [interviewStarted, timeLeft, completed]);
+
+  const startListening = () => {
+    if (isListeningRef.current || isSpeakingRef.current || completedRef.current) return;
+    
+    if (startListeningTimeoutRef.current) {
+      clearTimeout(startListeningTimeoutRef.current);
+    }
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+      }
+    } catch (err) {
+      console.warn("STT Start failure:", err.message);
+    }
+  };
+
+  const stopListening = () => {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      isListeningRef.current = false;
+    } catch (err) {
+      console.warn("STT Stop failure:", err.message);
+    }
+  };
 
   const toggleListening = () => {
     if (isListening) {
-      recognitionRef.current?.stop();
+      stopListening();
     } else {
-      recognitionRef.current?.start();
-      setIsListening(true);
+      startListening();
     }
   };
 
   const speakText = (text) => {
     if (!voiceMode) return;
     window.speechSynthesis.cancel();
+    
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
+    
+    // Choose premium english speaking voice
+    const voices = window.speechSynthesis.getVoices();
+    const premiumVoice = voices.find(v => v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural")));
+    if (premiumVoice) {
+      utterance.voice = premiumVoice;
+    }
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      isSpeakingRef.current = true;
+      stopListening();
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      
+      // Auto-Listen loop trigger: listen immediately after speech ends
+      if (voiceMode && autoListenRef.current && !completedRef.current) {
+        startListeningTimeoutRef.current = setTimeout(() => {
+          startListening();
+        }, 400);
+      }
+    };
+
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleEditorDidMount = (editor, monaco) => {
-    editorRef.current = editor;
+  const handleInterrupt = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
+    startListening();
+  };
 
-    // Register Custom Snippets (JavaScript)
-    monaco.languages.registerCompletionItemProvider('javascript', {
-      provideCompletionItems: (model, position) => {
-        const word = model.getWordUntilPosition(position);
-        const range = {
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn: word.startColumn,
-          endColumn: word.endColumn,
-        };
-        const suggestions = [
-          {
-            label: 'clg',
-            kind: monaco.languages.CompletionItemKind.Snippet,
-            documentation: 'Console Log',
-            insertText: 'console.log(${1:obj});',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range,
-          },
-          {
-            label: 'tryc',
-            kind: monaco.languages.CompletionItemKind.Snippet,
-            documentation: 'Try Catch Block',
-            insertText: 'try {\n\t$1\n} catch (error) {\n\tconsole.error(error);\n}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range,
-          },
-          {
-            label: 'fn',
-            kind: monaco.languages.CompletionItemKind.Snippet,
-            documentation: 'Function Template',
-            insertText: 'function ${1:name}(${2:params}) {\n\t$0\n}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: range,
-          },
-        ];
-        return { suggestions: suggestions };
-      },
-    });
+  // Start Topic Board Interview
+  const handleInitiateBoard = async (topicId) => {
+    setLoading(true);
+    const selected = INTERVIEW_TOPICS.find(t => t.id === topicId);
+    setSelectedTopic(selected);
+    
+    try {
+      const res = await API.post("/interview/start", { topic: selected.title });
+      setInterview(res.data);
+      setInterviewStarted(true);
 
-    // Add Auto-Format Action
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      if (formatOnSave) {
-        editor.getAction('editor.action.formatDocument').run();
+      // Trigger initial speaking greeting
+      const initialMsg = res.data.chatHistory?.[0]?.content;
+      if (initialMsg) {
+        setTimeout(() => {
+          speakText(initialMsg);
+        }, 1000);
       }
-    });
-
-    // Setup Vim Mode Status Bar (Optional UI enrichment)
-    if (!statusNodeRef.current) {
-        statusNodeRef.current = document.createElement('div');
-        statusNodeRef.current.className = 'vim-status-bar absolute bottom-0 right-0 bg-[#252525] text-xs px-2 py-1 text-slate-400 z-50';
-        editor.getDomNode().parentElement.appendChild(statusNodeRef.current);
+    } catch (error) {
+      console.error("Failed to start topic interview:", error);
+      alert("Failed to initialize oral interview board. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (editorRef.current && vimEnabled) {
-      vimModeRef.current = initVimMode(editorRef.current, statusNodeRef.current);
-    } else {
-      if (vimModeRef.current) {
-        vimModeRef.current.dispose();
-      }
+  // Submit voice response to AI
+  const handleSend = async (userMsg) => {
+    const currentInterview = interviewRef.current;
+    if (!currentInterview) {
+      console.warn("No active interview session found in ref.");
+      return;
     }
-  }, [vimEnabled]);
-
-  useEffect(() => {
-    const initInterview = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        let activeId = id;
-
-        if (!activeId || activeId === ":id") {
-            // Fetch daily or first available question
-            const qRes = await API.get("/questions/daily");
-            if (qRes.data && qRes.data._id) {
-                activeId = qRes.data._id;
-            } else {
-                const allRes = await API.get("/questions");
-                if (allRes.data && allRes.data.length > 0) {
-                    activeId = allRes.data[0]._id;
-                }
-            }
-        }
-
-        if (!activeId) throw new Error("No questions available");
-        
-        // 1. Fetch Question
-        const qRes = await API.get(`/questions/${activeId}`);
-        setQuestion(qRes.data);
-        
-        // 2. Start Interview Session
-        const intRes = await API.post("/interview/start", { questionId: activeId });
-        setInterview(intRes.data);
-        
-        // 3. Set Code Template
-        const templates = {
-          javascript: `function solution() {\n  // Type your code here\n}`
-        };
-        setCode(templates.javascript);
-
-      } catch (error) {
-        console.error("Failed to start interview:", error);
-        const errorMsg = error.response?.data?.message || error.message;
-        alert(`Could not start interview session: ${errorMsg}`);
-        navigate("/dashboard");
-      } finally {
-        setLoading(false);
-      }
-    };
-    initInterview();
-  }, [id, navigate]);
-
-  // Timer logic
-  useEffect(() => {
-    if (timeLeft <= 0 || completed) return;
-    const interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearInterval(interval);
-  }, [timeLeft, completed]);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [interview?.chatHistory]);
-
-  const handleSend = async () => {
-    if (!message.trim() || sending) return;
+    if (!userMsg.trim() || sending || completedRef.current) return;
     setSending(true);
-    const userMsg = message;
-    setMessage("");
+    
+    stopListening();
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
 
-    // Add user message to UI immediately
-    setInterview(prev => ({
-        ...prev,
-        chatHistory: [...prev.chatHistory, { role: "user", content: userMsg }]
-    }));
-
-    // Emit typing event
-    socketRef.current?.emit("typing", { interviewId: interview._id, role: "candidate" });
+    // Note: User responses are saved in backend database session history
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/interview/${interview._id}/turn`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        credentials: 'include', // Support secure cookies
-        body: JSON.stringify({ message: userMsg, code, stream: true })
+      const res = await API.post(`/interview/${currentInterview._id}/turn`, {
+        message: userMsg,
+        code: "", // Voice only, no code submissions
+        stream: false
       });
 
-      if (!response.ok) throw new Error("Network response was not ok");
+      const updated = res.data;
+      setInterview(updated);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let currentAssistantMessage = "";
-
-      // Add a placeholder for the assistant message
-      setInterview(prev => ({
-          ...prev,
-          chatHistory: [...prev.chatHistory, { role: "interviewer", content: "" }]
-      }));
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                try {
-                    const data = JSON.parse(line.slice(6));
-                    if (data.chunk) {
-                        currentAssistantMessage += data.chunk;
-                        // Update the last message in history iteratively
-                        setInterview(prev => {
-                            const newHistory = [...prev.chatHistory];
-                            newHistory[newHistory.length - 1].content = currentAssistantMessage;
-                            return { ...prev, chatHistory: newHistory };
-                        });
-                    }
-                    if (data.done) {
-                        setInterview(data.interview);
-                        // Speak if voice mode is on
-                        speakText(currentAssistantMessage);
-                    }
-                } catch (e) {
-                    // Ignore parse errors for incomplete JSON chunks
-                }
-            }
-        }
+      const history = updated.chatHistory;
+      const lastMsg = history[history.length - 1];
+      if (lastMsg && lastMsg.role === "interviewer") {
+        speakText(lastMsg.content);
       }
     } catch (error) {
-      console.error("Chat Error:", error);
+      console.error("Turn process error:", error);
+      const errMsg = error.response?.data?.message || error.message;
+      alert(`Failed to reach interview board: ${errMsg}`);
     } finally {
       setSending(false);
     }
   };
 
+  // Synchronize handleSend callback on every render
+  handleSendRef.current = handleSend;
+
+  // Complete & Evaluate Oral Board
   const handleFinish = async () => {
-    if (window.confirm("Are you sure you want to end this interview?")) {
-      setLoading(true);
-      try {
-        const res = await API.post(`/interview/${interview._id}/complete`, { code });
-        setInterview(res.data);
-        setCompleted(true);
-      } catch (error) {
-        console.error("Finish Error:", error);
-      } finally {
-        setLoading(false);
-      }
+    const currentInterview = interviewRef.current;
+    if (!currentInterview) return;
+    if (!window.confirm("Are you sure you want to end this interview board and receive your scorecard?")) return;
+    
+    window.speechSynthesis.cancel();
+    stopListening();
+    setLoading(true);
+
+    try {
+      const res = await API.post(`/interview/${currentInterview._id}/complete`, { code: "" });
+      setInterview(res.data);
+      setCompleted(true);
+    } catch (error) {
+      console.error("Completion evaluation error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -333,224 +384,308 @@ function MockInterview() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  // Loader view
   if (loading) {
     return (
-      <div className="h-screen bg-slate-50 flex flex-col items-center justify-center space-y-6">
-        <Loader2 className="animate-spin text-indigo-600" size={48} />
-        <div className="text-slate-900 font-bold tracking-wider">Starting Interview Session...</div>
+      <div className="h-screen bg-[#090a0f] flex flex-col items-center justify-center space-y-4 text-white">
+        <Loader2 className="animate-spin text-indigo-500" size={40} />
+        <div className="text-white/40 text-xs font-bold tracking-widest uppercase">Syncing Cyber Interview Board...</div>
       </div>
     );
   }
 
-  if (completed) {
-    const feedback = interview.feedback;
+  // Topic Selection Screen
+  if (!interviewStarted) {
     return (
-      <div className="h-screen bg-slate-50 flex items-center justify-center p-8 overflow-y-auto">
-        <div className="max-w-4xl w-full bg-white rounded-3xl p-12 shadow-xl border border-slate-200 space-y-10">
-            <div className="text-center space-y-4">
-                <div className="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle2 size={40} className="text-emerald-500" />
-                </div>
-                <h1 className="text-4xl font-bold text-slate-900">Interview Complete</h1>
-                <p className="text-slate-500 font-medium">Your performance has been evaluated by our AI.</p>
-            </div>
+      <div className="min-h-screen bg-[#090a0f] text-white p-6 font-sans relative overflow-hidden flex flex-col justify-center items-center">
+        {/* Ambient background glows */}
+        <div className="absolute top-[-10%] left-[-10%] w-[350px] h-[350px] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="bg-slate-50 p-8 rounded-3xl text-center border border-slate-200">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Total Score</div>
-                    <div className="text-6xl font-bold text-indigo-600">{feedback.score}</div>
-                </div>
-                <div className="md:col-span-2 space-y-6">
-                    <div className="bg-white border-l-4 border-emerald-500 p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Technical Feedback</h3>
-                        <p className="text-slate-700 font-medium text-sm">{feedback.technical}</p>
-                    </div>
-                    <div className="bg-white border-l-4 border-amber-500 p-6 rounded-2xl shadow-sm border border-slate-100">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Behavioral Feedback</h3>
-                        <p className="text-slate-700 font-medium text-sm">{feedback.behavioral}</p>
-                    </div>
-                </div>
+        <div className="max-w-4xl w-full relative z-10 space-y-8">
+          
+          <div className="text-center space-y-2.5">
+            <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <BrainCircuit className="text-indigo-400" size={24} />
             </div>
+            <h1 className="text-2xl font-black tracking-tight text-white/95">Voice-to-Voice AI Interview Board</h1>
+            <p className="text-xs text-white/45 font-medium max-w-lg mx-auto">
+              Simulate professional tech recruiter and behavioral interviews. Experience hands-free voice dialogs. No typing, just natural conversation.
+            </p>
+          </div>
 
-            <div className="flex justify-center pt-8">
-                <button 
-                    onClick={() => navigate("/dashboard")}
-                    className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2"
-                >
-                    <span>Return to Dashboard</span>
-                    <ArrowRight size={20} />
-                </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {INTERVIEW_TOPICS.map((topic) => (
+              <div 
+                key={topic.id}
+                onClick={() => handleInitiateBoard(topic.id)}
+                className={`group bg-[#18181b]/50 border rounded-2xl p-5 hover:border-white/15 hover:bg-[#1f1f23]/60 transition-all cursor-pointer shadow-lg shadow-black/25 flex flex-col justify-between h-48 bg-gradient-to-br ${topic.color}`}
+              >
+                <div>
+                  <div className="text-2xl mb-3 select-none">{topic.icon}</div>
+                  <h3 className="font-extrabold text-sm text-white/90 group-hover:text-indigo-400 transition-colors">
+                    {topic.title}
+                  </h3>
+                  <p className="text-[10px] text-white/45 font-medium mt-1.5 leading-relaxed">
+                    {topic.desc}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-indigo-400 group-hover:text-indigo-300 mt-4">
+                  <span>Enter Room</span>
+                  <ArrowRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
     );
   }
 
+  // Evaluation Screen (Completed)
+  if (completed) {
+    const feedback = interview.feedback || {};
+    return (
+      <div className="h-screen bg-[#090a0f] flex items-center justify-center p-6 overflow-y-auto text-white">
+        <div className="max-w-3xl w-full bg-[#18181b]/60 border border-white/10 rounded-2xl p-8 shadow-2xl backdrop-blur-xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
+              <CheckCircle2 size={28} className="text-emerald-400" />
+            </div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Interview Board Complete</h1>
+            <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest">Topic: {selectedTopic.title}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white/5 p-6 rounded-2xl text-center border border-white/5 shadow-md flex flex-col justify-center">
+              <div className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1.5">Evaluated Score</div>
+              <div className="text-5xl font-black text-indigo-400">{feedback.score || 70}</div>
+            </div>
+            
+            <div className="md:col-span-2 space-y-4">
+              <div className="bg-[#18181b]/60 border border-white/5 p-4 rounded-xl">
+                <h3 className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <Cpu size={12} /> Technical Proficiency
+                </h3>
+                <p className="text-white/70 font-semibold text-xs leading-relaxed">{feedback.technical || "Evaluation metrics processed."}</p>
+              </div>
+              <div className="bg-[#18181b]/60 border border-white/5 p-4 rounded-xl">
+                <h3 className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                  <User size={12} /> Communication & Behavioral
+                </h3>
+                <p className="text-white/70 font-semibold text-xs leading-relaxed">{feedback.behavioral || "Communication assessments finalized."}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <button 
+              onClick={() => navigate("/dashboard")}
+              className="bg-white hover:bg-slate-100 text-black font-semibold h-10 px-8 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-black/25"
+            >
+              <span>Return to Dashboard</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const interviewerCount = interview?.chatHistory ? interview.chatHistory.filter(h => h.role === "interviewer").length : 0;
+  const isSessionFinished = interviewerCount >= 6;
+
+  // Live Holographic Voice Board Screen
   return (
-    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden font-sans text-slate-900">
+    <div className="h-screen bg-[#090a0f] flex flex-col overflow-hidden font-sans text-white relative">
+      {/* Glow Rings */}
+      <div className="absolute top-[-20%] left-[-10%] w-[550px] h-[550px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[550px] h-[550px] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none"></div>
+
       {/* Header */}
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-20">
-        <div className="flex items-center space-x-6">
-          <button onClick={() => navigate(-1)} className="p-2 bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-all">
-            <ChevronLeft size={20} />
+      <header className="h-14 bg-[#18181b]/60 border-b border-white/5 flex items-center justify-between px-6 shadow-sm z-20 backdrop-blur-xl shrink-0">
+        <div className="flex items-center space-x-4">
+          <button 
+            onClick={() => {
+              if (window.confirm("Abandon current interview board? Progress will not be saved.")) {
+                navigate(-1);
+              }
+            }} 
+            className="p-1.5 bg-white/5 border border-white/15 rounded-lg text-white/70 hover:text-white transition-all cursor-pointer"
+          >
+            <ChevronLeft size={16} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">{question?.title}</h1>
-            <div className="flex items-center space-x-2 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Interview in Progress</span>
+            <h1 className="text-xs font-black uppercase text-white/80 tracking-widest">
+              Live Board: {selectedTopic?.title}
+            </h1>
+            <div className="flex items-center space-x-1.5 mt-0.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${isListening ? 'bg-emerald-400 animate-pulse' : isSpeaking ? 'bg-indigo-400 animate-pulse animate-ping' : 'bg-slate-500'}`}></span>
+              <span className="text-[7px] font-bold text-white/35 uppercase tracking-widest">
+                {isListening ? "Candidate Speaking" : isSpeaking ? "Interviewer Transmitting" : "Awaiting Turn"}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center space-x-6">
-          {/* Editor Settings */}
-          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200 mr-2">
-            <button 
-                onClick={() => setVoiceMode(!voiceMode)}
-                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${voiceMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
-                title="Toggle Voice Mode (AI will speak)"
-            >
-                {voiceMode ? <Volume2 size={14} /> : <VolumeX size={14} />}
-                <span className="text-[10px] font-bold">VOICE</span>
-            </button>
-            <div className="w-px h-4 bg-slate-200 mx-1"></div>
-            <button 
-                onClick={() => setVimEnabled(!vimEnabled)}
-                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${vimEnabled ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
-                title="Toggle Vim Mode"
-            >
-                <Command size={14} />
-                <span className="text-[10px] font-bold">VIM</span>
-            </button>
-            <div className="w-px h-4 bg-slate-200 mx-1"></div>
-            <button 
-                onClick={() => setFormatOnSave(!formatOnSave)}
-                className={`p-1.5 rounded-lg transition-all flex items-center gap-1 ${formatOnSave ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
-                title="Auto-format on Save (Ctrl+S)"
-            >
-                <Zap size={14} />
-                <span className="text-[10px] font-bold">FORMAT</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
-            <Timer size={18} className={timeLeft < 300 ? "text-rose-500 animate-pulse" : "text-indigo-600"} />
-            <span className={`text-lg font-bold tabular-nums ${timeLeft < 300 ? "text-rose-600" : "text-slate-900"}`}>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-xl border border-white/10 shrink-0">
+            <Timer size={14} className={timeLeft < 300 ? "text-rose-400 animate-pulse" : "text-indigo-400"} />
+            <span className={`text-xs font-bold tabular-nums ${timeLeft < 300 ? "text-rose-400" : "text-white/95"}`}>
               {formatTime(timeLeft)}
             </span>
           </div>
           <button 
             onClick={handleFinish}
-            className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition-all"
+            className="bg-white hover:bg-slate-100 text-black font-semibold h-8 px-4 rounded-lg text-xs transition-all cursor-pointer shadow-md shrink-0"
           >
             End Interview
           </button>
         </div>
       </header>
 
-      {/* Main Split Interface */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left: Chat Pane */}
-        <div className="w-[450px] border-r border-slate-200 flex flex-col bg-white shadow-sm z-10">
-          <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                <BrainCircuit size={18} className="text-indigo-600" />
-              </div>
-              <span className="text-xs font-bold text-slate-900 tracking-wide">AI Interviewer</span>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-            {interview?.chatHistory.map((h, i) => (
-              <div 
-                key={i}
-                className={`flex gap-3 ${h.role === 'interviewer' ? 'justify-start' : 'justify-end'}`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                  h.role === "interviewer" 
-                    ? "bg-indigo-600 shadow-md" 
-                    : "bg-emerald-600 shadow-md"
-                } ${h.role === "interviewer" && isSpeaking ? "animate-pulse ring-4 ring-indigo-200" : ""}`}>
-                  {h.role === "interviewer" ? <Cpu size={16} className="text-white" /> : <div className="text-[10px] font-bold text-white uppercase">Me</div>}
-                </div>
-                <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm relative ${
-                  h.role === 'interviewer' 
-                    ? 'bg-slate-100 border border-slate-200 text-slate-800' 
-                    : 'bg-indigo-600 text-white'
-                }`}>
-                  <p className="text-sm font-medium leading-relaxed">{h.content}</p>
-                </div>
-              </div>
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-
-          <div className="p-6 border-t border-slate-200 bg-white">
-          <div className="flex items-center space-x-3 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:border-indigo-400 transition-all shadow-inner">
-            <button
-                onClick={toggleListening}
-                className={`p-3 rounded-xl transition-all ${isListening ? 'bg-rose-100 text-rose-600 animate-pulse' : 'text-slate-400 hover:bg-slate-200'}`}
-                title={isListening ? "Listening..." : "Voice Input"}
-            >
-                {isListening ? <Mic size={20} /> : <Mic size={20} />}
-            </button>
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder={isListening ? "Listening to your voice..." : "Type or speak your message..."}
-              className="flex-1 bg-transparent border-none outline-none py-3 text-sm font-medium placeholder-slate-400"
+      {/* Holographic Interview Dashboard Content */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10">
+        
+        {/* Core Robot Visor HUD */}
+        <div className="w-full max-w-xl flex flex-col items-center space-y-8">
+          
+          {/* Main Large Visualizer Head */}
+          <div className="w-[300px] h-[300px] relative">
+            <RobotAvatar 
+              isSpeaking={isSpeaking}
+              isListening={isListening}
+              isThinking={sending}
             />
-            <button
-              onClick={handleSend}
-              disabled={sending || !message.trim()}
-              className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all shadow-md active:scale-95"
-            >
-              <Send size={18} />
-            </button>
+            {/* Spinning Radar Scan ring effect on container */}
+            <div className={`absolute inset-0 border border-indigo-500/10 rounded-2xl pointer-events-none transition-all duration-700 ${isSpeaking ? 'scale-105 border-indigo-500/20' : isListening ? 'scale-105 border-emerald-500/20' : ''}`}></div>
           </div>
-          {isSpeaking && (
-            <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest animate-pulse">
-                <Radio size={12} />
-                <span>AI Interviewer is speaking...</span>
+
+          {/* Live Subtitles Teleprompter */}
+          {transcribedText && !isSessionFinished && (
+            <div className="w-full bg-[#1c1d24]/60 border border-emerald-500/25 rounded-2xl p-4 shadow-lg shadow-emerald-950/10 backdrop-blur-md transition-all duration-300 animate-fade-in-up">
+              <div className="text-[7px] font-black uppercase text-emerald-400 tracking-widest mb-1.5 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping shrink-0"></span>
+                <span>Live Speech Transcription</span>
+              </div>
+              <p className="text-xs font-semibold text-white/90 leading-relaxed text-left max-h-24 overflow-y-auto custom-scrollbar italic">
+                "{transcribedText}"
+              </p>
             </div>
           )}
-        </div>
-      </div>
 
-        {/* Right: Code Editor Pane */}
-        <div className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative">
-          <div className="h-10 bg-[#252525] border-b border-white/5 flex items-center px-6">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <FileCode size={12} />
-              solution.js
-            </span>
+          {/* Interactive Speech Status Box */}
+          <div className="w-full text-center space-y-3">
+            <div className="bg-[#18181b]/50 border border-white/5 rounded-2xl p-4 shadow-lg shadow-black/30 backdrop-blur-xl">
+              {isSessionFinished ? (
+                <div className="flex flex-col items-center justify-center py-1.5 space-y-1">
+                  <div className="text-emerald-400 font-bold uppercase tracking-widest text-[9px] animate-pulse">
+                    🎉 Oral Interview Complete
+                  </div>
+                  <div className="text-white/45 text-[10px] font-medium leading-relaxed">
+                    You have answered all 5 technical/behavioral questions.
+                  </div>
+                </div>
+              ) : sending ? (
+                <div className="flex items-center justify-center gap-2 text-indigo-400 font-bold uppercase tracking-widest text-[9px] py-1.5 animate-pulse">
+                  <Activity size={12} className="animate-spin" />
+                  <span>AI Recruiter parsing speech...</span>
+                </div>
+              ) : isListening ? (
+                <div className="flex items-center justify-center gap-2 text-emerald-400 font-bold uppercase tracking-widest text-[9px] py-1.5 animate-pulse">
+                  <Mic size={12} className="animate-bounce" />
+                  <span>Microphone Active. Speak now...</span>
+                </div>
+              ) : isSpeaking ? (
+                <div className="flex items-center justify-center gap-2 text-indigo-400 font-bold uppercase tracking-widest text-[9px] py-1.5">
+                  <Volume2 size={12} />
+                  <span>Interviewer is talking...</span>
+                </div>
+              ) : (
+                <div className="text-white/35 font-bold uppercase tracking-widest text-[9px] py-1.5">
+                  Microphone Standby. Enable auto-listen or click mic to reply.
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex-1">
-            <Editor
-              height="100%"
-              theme="vs-dark"
-              language="javascript"
-              value={code}
-              onChange={(v) => setCode(v || "")}
-              onMount={handleEditorDidMount}
-              options={{
-                fontSize: 15,
-                minimap: { enabled: false },
-                padding: { top: 20 },
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-              }}
-            />
+
+          {/* Audio Controls Toolbar */}
+          <div className="flex items-center justify-center gap-3.5 bg-[#18181b]/40 border border-white/10 px-4 py-2.5 rounded-2xl shadow-xl shadow-black/35 backdrop-blur-xl">
+            {isSessionFinished ? (
+              <button
+                onClick={handleFinish}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold h-11 px-8 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-500/20 animate-pulse border border-indigo-400/30"
+              >
+                <CheckCircle2 size={14} />
+                <span>View Performance Scorecard</span>
+              </button>
+            ) : (
+              <>
+                {/* Mic Toggle Button */}
+                <button
+                  onClick={toggleListening}
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center border transition-all cursor-pointer ${
+                    isListening 
+                      ? 'bg-rose-500/20 border-rose-500/40 text-rose-400 shadow-lg shadow-rose-500/10' 
+                      : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                  }`}
+                  title={isListening ? "Mute Microphone" : "Unmute Microphone"}
+                >
+                  {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                </button>
+
+                {/* Auto Listen Toggle */}
+                <button
+                  onClick={() => setAutoListen(!autoListen)}
+                  className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                    autoListen 
+                      ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400 shadow-lg shadow-indigo-500/10' 
+                      : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                  }`}
+                  title="Auto-Listen Mode (Auto-mic after AI speaks)"
+                >
+                  <Activity size={14} className={autoListen ? "animate-pulse" : ""} />
+                  <span className="text-[6px] font-black uppercase tracking-widest mt-0.5">AUTO</span>
+                </button>
+
+                {/* Speaker Voice Mode Toggle */}
+                <button
+                  onClick={() => setVoiceMode(!voiceMode)}
+                  className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+                    voiceMode 
+                      ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-400 shadow-lg shadow-indigo-500/10' 
+                      : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                  }`}
+                  title="Voice output volume toggle"
+                >
+                  {voiceMode ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                  <span className="text-[6px] font-black uppercase tracking-widest mt-0.5">VOICE</span>
+                </button>
+
+                {/* Interrupt AI Button */}
+                <button
+                  onClick={handleInterrupt}
+                  disabled={!isSpeaking}
+                  className={`h-11 px-4 rounded-xl flex items-center gap-1.5 border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    isSpeaking 
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20' 
+                      : 'bg-white/5 border-white/5 text-white/20 cursor-not-allowed'
+                  }`}
+                  title="Interrupt AI speaking to reply immediately"
+                >
+                  <Pause size={12} />
+                  <span>Interrupt</span>
+                </button>
+              </>
+            )}
           </div>
+
         </div>
+
       </main>
     </div>
   );
 }
-
 
 export default MockInterview;

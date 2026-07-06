@@ -6,7 +6,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - MONGODB_URI=mongodb://mongo:27017/devprep
+      - MONGODB_URI=mongodb://mongo:27017/devprepAI
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=prod_secret_key
       - REFRESH_TOKEN_SECRET=prod_refresh_secret_key
@@ -37,5 +37,24 @@ services:
     ports:
       - "6379:6379"
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=judge0
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  judge0:
+    image: judge0/judge0:latest
+    environment:
+      - JUDGE0_REDIS_URL=redis://redis:6379
+      - JUDGE0_DB_URL=postgres://judge0:judge0@postgres:5432/judge0
+    depends_on:
+      - redis
+      - postgres
+
 volumes:
   mongo-data:
+  postgres-data:

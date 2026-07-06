@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../services/api";
-import { Mail, CheckCircle2, Loader2, Key } from "lucide-react";
+import { CheckCircle2, Loader2, Key, ShieldAlert, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 function VerifyOTP() {
@@ -12,22 +12,20 @@ function VerifyOTP() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [verified, setVerified] = useState(false);
 
   const handleVerify = async (e) => {
     e.preventDefault();
     if (!email) {
-        setError("Missing email context. Please sign up again.");
-        return;
+      setError("Missing email context. Please sign up again.");
+      return;
     }
     setLoading(true);
     setError("");
 
     try {
-      const res = await API.post("/auth/verify-otp", { email, otp });
-      // Store user info and role, but tokens are now in secure cookies
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      localStorage.setItem("role", res.data.user.role);
-      navigate("/dashboard");
+      await API.post("/auth/verify-otp", { email, otp });
+      setVerified(true);
     } catch (err) {
       setError(err.response?.data?.message || "Invalid OTP. Please try again.");
     } finally {
@@ -35,63 +33,108 @@ function VerifyOTP() {
     }
   };
 
+  if (verified) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#090a0f] relative overflow-hidden font-sans p-4 selection:bg-indigo-500/30 selection:text-white">
+        {/* Premium Apple Ambient Glow Backgrounds */}
+        <div className="absolute top-[-10%] left-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+        {/* Verify Window Card - Compact */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-full max-w-[360px] p-8 bg-[#18181b]/60 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl relative overflow-hidden text-center flex flex-col items-center"
+        >
+          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-5 animate-pulse">
+            <ShieldCheck size={32} />
+          </div>
+
+          <h1 className="text-xl font-bold text-white tracking-tight">OTP Verified!</h1>
+          <p className="text-[11px] text-white/55 font-medium mt-2 leading-relaxed max-w-[240px]">
+            Your email has been successfully verified. Please log in to access your dashboard.
+          </p>
+
+          <button
+            onClick={() => navigate("/", { state: { email, message: "Email verified successfully! Please log in." } })}
+            className="w-full bg-white hover:bg-slate-100 text-black font-semibold h-10 rounded-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center space-x-1.5 cursor-pointer shadow-lg shadow-black/20 mt-6 text-xs uppercase"
+          >
+            <span>Proceed to Login</span>
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 font-sans p-6">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#090a0f] relative overflow-hidden font-sans p-4 selection:bg-indigo-500/30 selection:text-white">
+      {/* Premium Apple Ambient Glow Backgrounds */}
+      <div className="absolute top-[-10%] left-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-15%] right-[-5%] w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+      {/* Verify Window Card - Compact */}
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl border border-slate-200"
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="w-full max-w-[360px] p-6 bg-[#18181b]/60 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl relative overflow-hidden"
       >
-        <div className="flex flex-col items-center mb-8 text-center">
-            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-                <Mail className="text-white" size={32} />
-            </div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Check your email</h1>
-            <p className="text-slate-500 font-medium">We've sent a 6-digit code to <br/><span className="text-indigo-600">{email || "your email"}</span></p>
+        {/* Brand/Header Section */}
+        <div className="flex flex-col items-center mb-6 text-center">
+          <h1 className="text-xl font-bold text-white tracking-tight">Check your email</h1>
+          <p className="text-[11px] text-white/55 font-medium mt-1.5 max-w-[240px] mx-auto leading-relaxed">
+            We've sent a 6-digit code to <br/>
+            <span className="text-indigo-400 font-semibold">{email || "your email"}</span>
+          </p>
         </div>
 
-        <form onSubmit={handleVerify} className="space-y-6">
-            <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">6-Digit Code</label>
-                <div className="relative">
-                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="000000"
-                        maxLength={6}
-                        className="w-full bg-slate-50 border border-slate-200 p-4 pl-12 rounded-xl text-slate-900 outline-none focus:border-indigo-500 transition-all text-2xl font-bold tracking-[0.5em] text-center"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        required
-                    />
-                </div>
+        {/* OTP Input Form */}
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">6-Digit Code</label>
+            <div className="relative group">
+              <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35 group-focus-within:text-indigo-400 transition-colors" size={14} />
+              <input
+                type="text"
+                placeholder="000000"
+                maxLength={6}
+                className="w-full bg-white/[0.02] border border-white/10 p-2.5 pl-9 rounded-xl text-white outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all text-xl font-bold tracking-[0.5em] text-center placeholder:text-white/20"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+              />
             </div>
+          </div>
 
-            {error && (
-                <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-sm font-semibold">
-                    {error}
-                </div>
+          {/* Error Message rendering */}
+          {error && (
+            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
+              {error}
+            </div>
+          )}
+
+          {/* Form Actions */}
+          <button
+            type="submit"
+            disabled={loading || otp.length < 6}
+            className="w-full bg-white hover:bg-slate-100 disabled:bg-white/20 disabled:text-white/40 disabled:cursor-not-allowed text-black font-semibold h-10 rounded-xl transition-all duration-200 active:scale-[0.98] flex items-center justify-center space-x-1.5 cursor-pointer shadow-lg shadow-black/20"
+          >
+            {loading ? <Loader2 className="animate-spin text-black" size={18} /> : (
+              <>
+                <span className="text-sm">CONFIRM CODE</span>
+                <CheckCircle2 size={14} />
+              </>
             )}
-
-            <button
-                type="submit"
-                disabled={loading || otp.length < 6}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold h-14 rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 group"
-            >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : (
-                    <>
-                        <span>Confirm Code</span>
-                        <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />
-                    </>
-                )}
-            </button>
+          </button>
         </form>
 
-        <p className="text-sm text-slate-500 mt-8 text-center font-medium">
-            Didn't receive the code?{" "}
-            <button className="text-indigo-600 font-bold hover:text-indigo-700 transition-all">
-                Resend Code
-            </button>
+        {/* Footer section */}
+        <p className="text-[11px] text-white/40 mt-6 text-center font-semibold">
+          Didn't receive the code?{" "}
+          <button className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors underline underline-offset-4 decoration-1">
+            Resend Code
+          </button>
         </p>
       </motion.div>
     </div>

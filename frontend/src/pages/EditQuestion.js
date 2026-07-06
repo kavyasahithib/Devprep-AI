@@ -27,6 +27,7 @@ function EditQuestion() {
     description: "",
     difficulty: "Easy",
     functionName: "solution",
+    companies: "",
     testCases: []
   });
 
@@ -41,6 +42,7 @@ function EditQuestion() {
             description: q.description || "",
             difficulty: q.difficulty || "Easy",
             functionName: q.functionName || "solution",
+            companies: q.companies ? q.companies.join(', ') : "",
             testCases: q.testCases || []
           });
         }
@@ -79,7 +81,11 @@ function EditQuestion() {
     e.preventDefault();
     setSaving(true);
     try {
-      await API.put(`/questions/${id}`, formData);
+      const payload = {
+        ...formData,
+        companies: formData.companies.split(',').map(c => c.trim()).filter(c => c)
+      };
+      await API.put(`/questions/${id}`, payload);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
@@ -92,97 +98,115 @@ function EditQuestion() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="text-indigo-600 animate-spin" size={48} />
+      <div className="min-h-screen bg-[#090a0f] flex items-center justify-center text-white">
+        <Loader2 className="text-indigo-500 animate-spin" size={40} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 font-sans">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-[#090a0f] text-white p-6 font-sans relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute top-[-10%] left-[-10%] w-[350px] h-[350px] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <div className="max-w-4xl mx-auto relative z-10 space-y-6">
+        <div className="flex items-center justify-between">
           <button 
             onClick={() => navigate("/questions")}
-            className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors group"
+            className="flex items-center gap-1.5 text-white/50 hover:text-white transition-colors group cursor-pointer"
           >
-            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="font-bold text-xs uppercase tracking-wider">Back to Problems</span>
+            <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            <span className="font-bold text-[10px] uppercase tracking-wider">Back to Problems</span>
           </button>
           
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                <FileText className="text-white" size={24} />
+            <div className="w-9 h-9 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center shadow-lg">
+              <FileText className="text-indigo-400" size={18} />
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">Edit Problem</h1>
+            <h1 className="text-lg font-bold text-white tracking-tight">Edit Problem</h1>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Main Info Card */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Problem Title</label>
-                <div className="relative">
-                  <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <div className="bg-[#18181b]/50 border border-white/5 rounded-2xl p-6 shadow-lg shadow-black/25 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Problem Title</label>
+                <div className="relative group">
+                  <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35 group-focus-within:text-indigo-400 transition-colors" size={14} />
                   <input
                     required
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-semibold text-sm"
+                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-white/20 outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold text-xs"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Function Name</label>
-                <div className="relative">
-                  <Code2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Function Name</label>
+                <div className="relative group">
+                  <Code2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35 group-focus-within:text-indigo-400 transition-colors" size={14} />
                   <input
                     required
                     name="functionName"
                     value={formData.functionName}
                     onChange={handleChange}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-mono text-sm"
+                    className="w-full bg-white/[0.02] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-white/20 outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all font-mono text-xs"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Problem Description</label>
-              <div className="relative">
-                <FileText className="absolute left-4 top-4 text-slate-400" size={18} />
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Companies (Comma Separated)</label>
+              <div className="relative group">
+                <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35 group-focus-within:text-indigo-400 transition-colors" size={14} />
+                <input
+                  name="companies"
+                  value={formData.companies}
+                  onChange={handleChange}
+                  placeholder="e.g. Google, Netflix, Amazon"
+                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-white/20 outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all font-semibold text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Problem Description</label>
+              <div className="relative group">
+                <FileText className="absolute left-3.5 top-3 text-white/35 group-focus-within:text-indigo-400 transition-colors" size={14} />
                 <textarea
                   required
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  rows={6}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-medium leading-relaxed text-sm"
+                  rows={5}
+                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-white/20 outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all font-medium leading-relaxed text-xs resize-none"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Difficulty Level</label>
-              <div className="flex gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Difficulty Level</label>
+              <div className="flex gap-3">
                 {["Easy", "Medium", "Hard"].map((level) => (
                   <button
                     key={level}
                     type="button"
                     onClick={() => setFormData({ ...formData, difficulty: level })}
-                    className={`flex-1 py-3 px-6 rounded-xl font-bold border transition-all text-xs ${
+                    className={`flex-1 py-2 rounded-xl font-bold border transition-all text-[10px] tracking-wide cursor-pointer uppercase ${
                       formData.difficulty === level 
-                        ? (level === 'Easy' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm' :
-                           level === 'Medium' ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm' :
-                           'bg-rose-50 border-rose-500 text-rose-700 shadow-sm')
-                        : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
+                        ? (level === 'Easy' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-md' :
+                           level === 'Medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 shadow-md' :
+                           'bg-rose-500/10 border-rose-500/20 text-rose-400 shadow-md')
+                        : 'bg-white/5 border-white/5 text-white/40 hover:border-white/10'
                     }`}
                   >
-                    {level.toUpperCase()}
+                    {level}
                   </button>
                 ))}
               </div>
@@ -190,107 +214,106 @@ function EditQuestion() {
           </div>
 
           {/* Test Cases Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
-                <Database className="text-indigo-600" size={20} />
-                <h2 className="text-lg font-bold text-slate-900">Test Cases</h2>
+                <Database className="text-indigo-400" size={16} />
+                <h2 className="text-sm font-bold text-white">Test Cases</h2>
               </div>
-              <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full">
+              <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full shrink-0">
                 {formData.testCases.length} Test Cases
               </span>
             </div>
 
-            <div className="space-y-4">
-                {formData.testCases.map((tc, index) => (
-                  <div 
-                    key={index}
-                    className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Case #{index + 1}</span>
-                      <button 
-                        type="button"
-                        onClick={() => removeTestCase(index)}
-                        className="text-slate-300 hover:text-rose-500 transition-colors p-1"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+            <div className="space-y-3.5">
+              {formData.testCases.map((tc, index) => (
+                <div 
+                  key={index}
+                  className="bg-[#18181b]/50 border border-white/5 rounded-2xl p-5 shadow-lg shadow-black/25 flex flex-col space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">Case #{index + 1}</span>
+                    <button 
+                      type="button"
+                      onClick={() => removeTestCase(index)}
+                      className="text-white/30 hover:text-rose-400 transition-colors p-1 cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Input</div>
-                         <textarea
-                            value={tc.input}
-                            onChange={(e) => updateTestCase(index, 'input', e.target.value)}
-                            rows={2}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-mono text-xs"
-                         />
-                      </div>
-                      <div className="space-y-2">
-                         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Expected Output</div>
-                         <textarea
-                            value={tc.output}
-                            onChange={(e) => updateTestCase(index, 'output', e.target.value)}
-                            rows={2}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-500 transition-all font-mono text-xs"
-                         />
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Input</div>
+                      <textarea
+                        value={tc.input}
+                        onChange={(e) => updateTestCase(index, 'input', e.target.value)}
+                        rows={2}
+                        className="w-full bg-white/[0.02] border border-white/10 rounded-xl py-2 px-3 text-white placeholder-white/20 outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all font-mono text-xs resize-none leading-relaxed"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[9px] font-bold text-white/40 uppercase tracking-widest ml-1">Expected Output</div>
+                      <textarea
+                        value={tc.output}
+                        onChange={(e) => updateTestCase(index, 'output', e.target.value)}
+                        rows={2}
+                        className="w-full bg-white/[0.02] border border-white/10 rounded-xl py-2 px-3 text-white placeholder-white/20 outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 transition-all font-mono text-xs resize-none leading-relaxed"
+                      />
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
 
               <button
                 type="button"
                 onClick={addTestCase}
-                className="w-full py-4 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold uppercase tracking-wider text-[10px] hover:border-indigo-300 hover:text-indigo-600 transition-all bg-white flex items-center justify-center gap-2"
+                className="w-full py-3.5 border border-dashed border-white/10 rounded-2xl text-white/40 font-bold uppercase tracking-wider text-[10px] hover:border-indigo-500/50 hover:text-indigo-400 transition-all bg-white/5 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Plus size={16} />
-                Add Test Case
+                <Plus size={14} />
+                <span>Add Test Case</span>
               </button>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-2">
             <button
               disabled={saving}
               type="submit"
-              className={`flex-1 font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-3 ${
+              className={`flex-1 font-semibold h-11 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer ${
                 success 
-                ? "bg-emerald-600 text-white shadow-emerald-200" 
-                : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                ? "bg-emerald-600 text-white shadow-emerald-600/10" 
+                : "bg-white hover:bg-slate-100 text-black shadow-black/20"
               }`}
             >
               {saving ? (
-                <Loader2 className="animate-spin" size={20} />
+                <Loader2 className="animate-spin text-black" size={18} />
               ) : success ? (
                 <>
-                  <CheckCircle2 size={24} />
-                  Changes Saved
+                  <CheckCircle2 size={16} className="text-white" />
+                  <span>Changes Saved</span>
                 </>
               ) : (
                 <>
-                  <Save size={20} />
-                  Update Problem
+                  <Save size={16} />
+                  <span>Update Problem</span>
                 </>
               )}
             </button>
           </div>
         </form>
         
-        <div className="mt-12 p-6 bg-white rounded-3xl border border-slate-200 flex items-start gap-4 shadow-sm">
-            <AlertCircle className="text-indigo-600 mt-0.5" size={20} />
-            <div className="text-sm">
-                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-1">Architectural Note</h4>
-                <p className="text-slate-500 font-medium leading-relaxed text-xs">Standardized updates will affect all future submissions. Ensure test coverage remains consistent with the original problem constraints.</p>
-            </div>
+        <div className="mt-8 p-5 bg-[#18181b]/50 border border-white/5 rounded-2xl flex items-start gap-3.5 shadow-lg shadow-black/25">
+          <AlertCircle className="text-indigo-400 mt-0.5 shrink-0" size={18} />
+          <div className="text-xs">
+            <h4 className="font-bold text-white text-[10px] uppercase tracking-wider mb-1">Architectural Note</h4>
+            <p className="text-white/45 font-semibold leading-relaxed">Standardized updates will affect all future submissions. Ensure test coverage remains consistent with the original problem constraints.</p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
 
 export default EditQuestion;

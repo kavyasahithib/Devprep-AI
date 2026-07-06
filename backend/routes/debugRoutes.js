@@ -10,7 +10,8 @@ router.get("/system/elite-status", authMiddleware, async (req, res) => {
   const status = {
     auth: {
         method: req.headers.authorization ? "Bearer Token" : "Secure Cookie",
-        user: req.user.email
+        userId: req.user.id,
+        role: req.user.role
     },
     redis: checkConnection() ? "Online" : "Offline (Caching Disabled)",
     ai: "Checking...",

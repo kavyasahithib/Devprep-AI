@@ -81,6 +81,10 @@ const generateStreamingContent = async (prompt, defaultModel = 'gemini-2.5-flash
       console.log(`Attempting streaming with model: ${modelName}...`);
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContentStream(prompt);
+      
+      // Catch the background response promise to prevent unhandled rejections if stream fails
+      result.response.catch(e => console.error(`Background stream response error with model ${modelName}:`, e.message));
+
       return result.stream; // Returns an async iterable
     } catch (error) {
       console.error(`Streaming ERROR with model ${modelName}:`, error.message);
@@ -212,10 +216,12 @@ exports.summarizeMistakes = async (review) => {
 
   const responseText = await generateWithFallback(prompt);
   try {
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+    const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    const jsonString = jsonMatch ? jsonMatch[0] : responseText;
+    const cleanJson = jsonString.replace(/```json|```/g, "").trim();
+    return JSON.parse(cleanJson);
   } catch (e) {
-    console.error("Failed to parse mistake summary JSON:", responseText);
+    console.warn("Failed to parse mistake summary JSON. Length:", responseText.length);
     return [];
   }
 };

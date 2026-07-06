@@ -6,6 +6,50 @@ const { reviewCode, generateExplanation, analyzeComplexity, summarizeMistakes } 
 const { checkPlagiarism } = require("../services/securityService");
 
 
+// ================= PARSE COMPLEXITY FROM AI RESPONSE =================
+function parseComplexity(complexityText) {
+  if (!complexityText) return { timeComplexity: "Unknown", spaceComplexity: "Unknown" };
+
+  let timeComplexity = "Unknown";
+  let spaceComplexity = "Unknown";
+
+  // Clean markdown bolding/markers
+  const cleanText = complexityText.replace(/\*/g, '');
+  
+  // Look for time complexity line
+  const timeLine = cleanText.split('\n').find(line => /time/i.test(line));
+  if (timeLine) {
+    const match = timeLine.match(/O\([^)]+\)/i);
+    if (match) timeComplexity = match[0];
+  }
+  
+  // Look for space complexity line
+  const spaceLine = cleanText.split('\n').find(line => /space/i.test(line));
+  if (spaceLine) {
+    const match = spaceLine.match(/O\([^)]+\)/i);
+    if (match) spaceComplexity = match[0];
+  }
+  
+  // Fallback to absolute positional matching of O(...) if lines not matched
+  if (timeComplexity === "Unknown" || spaceComplexity === "Unknown") {
+    const matches = cleanText.match(/O\([^)]+\)/gi);
+    if (matches) {
+      if (timeComplexity === "Unknown" && matches[0]) timeComplexity = matches[0];
+      if (spaceComplexity === "Unknown" && matches[1]) spaceComplexity = matches[1];
+      else if (spaceComplexity === "Unknown" && matches[0] && matches.length === 1) {
+        spaceComplexity = "O(1)";
+      }
+    }
+  }
+
+  // Normalize spaces inside O(...)
+  if (timeComplexity !== "Unknown") timeComplexity = timeComplexity.replace(/\s+/g, ' ');
+  if (spaceComplexity !== "Unknown") spaceComplexity = spaceComplexity.replace(/\s+/g, ' ');
+
+  return { timeComplexity, spaceComplexity };
+}
+
+
 // ================= STRIP TYPESCRIPT SYNTAX =================
 function stripTypeScriptSyntax(code) {
   // Remove type annotations from variable declarations
@@ -32,7 +76,7 @@ function wrapCode(code, language, functionName, input) {
     case 'javascript':
       return `
 ${code}
-const result = ${functionName}(...JSON.parse("[${input}]"));
+const result = ${functionName}(...JSON.parse('[${input}]'));
 console.log(JSON.stringify(result));
 `;
     case 'python':
@@ -226,6 +270,10 @@ exports.submitCode = async (req, res) => {
             { name: 'complexity', prompt: `Analyze time and space complexity for this ${language} code:\n${code}\nReturn O(?) with explanation.` }
         ];
 
+        let reviewContent = "";
+        let explanationContent = "";
+        let complexityContent = "";
+
         for (const section of sections) {
             res.write(`data: ${JSON.stringify({ section: section.name, start: true })}\n\n`);
             const assistantStream = await generateStreamingContent(section.prompt);
@@ -238,6 +286,7 @@ exports.submitCode = async (req, res) => {
             res.write(`data: ${JSON.stringify({ section: section.name, end: true, full: sectionContent })}\n\n`);
 
             if (section.name === 'review') {
+              reviewContent = sectionContent;
               summarizeMistakes(sectionContent).then(async (mistakes) => {
                 if (mistakes.length > 0) {
                   await User.findByIdAndUpdate(req.user.id, {
@@ -246,8 +295,21 @@ exports.submitCode = async (req, res) => {
                   });
                 }
               }).catch(e => console.error("Mistake update error:", e));
+            } else if (section.name === 'explanation') {
+              explanationContent = sectionContent;
+            } else if (section.name === 'complexity') {
+              complexityContent = sectionContent;
             }
         }
+
+        // Save accumulated streaming results back to the submission
+        submission.aiReview = reviewContent;
+        submission.aiExplanation = explanationContent;
+        submission.complexityAnalysis = complexityContent;
+        const parsed = parseComplexity(complexityContent);
+        submission.timeComplexity = parsed.timeComplexity;
+        submission.spaceComplexity = parsed.spaceComplexity;
+        await submission.save();
 
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
         return res.end();
@@ -273,6 +335,15 @@ exports.submitCode = async (req, res) => {
             }
           }).catch(e => console.error("Mistake update error:", e));
 
+          // Save non-streaming results to submission
+          submission.aiReview = reviewRes || "";
+          submission.aiExplanation = explanationRes || "";
+          submission.complexityAnalysis = complexityRes || "";
+          const parsed = parseComplexity(complexityRes);
+          submission.timeComplexity = parsed.timeComplexity;
+          submission.spaceComplexity = parsed.spaceComplexity;
+          await submission.save();
+
           return res.json({
             status: finalStatus,
             testResults,
@@ -294,11 +365,16 @@ exports.submitCode = async (req, res) => {
 
   } catch (error) {
 
-    console.error(error);
+    console.error("Submit Code Error:", error.message);
 
-    res.status(500).json({
-      message: "Server error"
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: "Server error"
+      });
+    } else {
+      res.write(`data: ${JSON.stringify({ done: true, error: "Server error during processing." })}\n\n`);
+      res.end();
+    }
 
   }
 
@@ -452,6 +528,11 @@ exports.syncSubmissionToGithub = async (req, res) => {
 
     if (!submission || !user) {
       return res.status(404).json({ message: "Submission or User not found" });
+    }
+
+    // Verify submission ownership to prevent IDOR
+    if (submission.userId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Access denied: You do not own this submission" });
     }
 
     if (!user.githubToken) {

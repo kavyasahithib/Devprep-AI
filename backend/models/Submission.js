@@ -40,6 +40,26 @@ const submissionSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  timeComplexity: {
+    type: String,
+    default: "Unknown"
+  },
+  spaceComplexity: {
+    type: String,
+    default: "Unknown"
+  },
+  complexityAnalysis: {
+    type: String,
+    default: ""
+  },
+  aiReview: {
+    type: String,
+    default: ""
+  },
+  aiExplanation: {
+    type: String,
+    default: ""
+  },
   createdAt: {
 
     type: Date,

@@ -8,9 +8,9 @@ import {
   Code2, 
   Calendar,
   Search,
-  Target
+  Target,
+  Loader2
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 function Submissions() {
@@ -48,112 +48,120 @@ function Submissions() {
 
   if (loading) {
     return (
-      <div className="h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="h-screen bg-[#090a0f] flex items-center justify-center text-white">
+        <Loader2 className="animate-spin text-indigo-500" size={40} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 font-sans">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+    <div className="min-h-screen bg-[#090a0f] text-white p-6 font-sans relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute top-[-10%] left-[-10%] w-[350px] h-[350px] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto relative z-10 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Submission History</h1>
-            <p className="text-slate-500 font-medium">Review your past performance and solved problems.</p>
+            <h1 className="text-xl font-bold tracking-tight">Submission History</h1>
+            <p className="text-[11px] text-white/50 font-medium mt-0.5">Review your past performance and solved problems.</p>
           </div>
           
-          <div className="flex items-center space-x-4">
-             <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                    type="text"
-                    placeholder="Search submissions..."
-                    className="bg-white border border-slate-200 text-slate-900 pl-12 pr-6 py-3 rounded-2xl outline-none focus:border-indigo-400 w-full md:w-80 transition-all font-medium text-sm shadow-sm"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-             </div>
+          <div className="relative shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/35" size={14} />
+            <input 
+              type="text"
+              placeholder="Search submissions..."
+              className="bg-white/[0.02] border border-white/10 text-white pl-10 pr-4 py-2 rounded-xl outline-none focus:border-indigo-500/80 focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-500/20 w-full sm:w-64 transition-all text-xs placeholder:text-white/20"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total Sessions", value: stats.total, icon: <Clock className="text-indigo-600" size={20} /> },
-            { label: "Success Rate", value: `${accuracy}%`, icon: <CheckCircle2 className="text-emerald-500" size={20} /> },
-            { label: "Solved Problems", value: stats.accepted, icon: <Target className="text-amber-500" size={20} /> },
-            { label: "Languages", value: stats.languages, icon: <Code2 className="text-indigo-600" size={20} /> }
+            { label: "Total Sessions", value: stats.total, icon: <Clock className="text-indigo-400" size={16} /> },
+            { label: "Success Rate", value: `${accuracy}%`, icon: <CheckCircle2 className="text-emerald-400" size={16} /> },
+            { label: "Solved Problems", value: stats.accepted, icon: <Target className="text-amber-400" size={16} /> },
+            { label: "Languages", value: stats.languages, icon: <Code2 className="text-indigo-400" size={16} /> }
           ].map((stat, i) => (
             <div 
               key={i}
-              className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm group"
+              className="bg-[#18181b]/50 border border-white/5 p-4 rounded-xl flex items-center space-x-3.5 shadow-lg shadow-black/25"
             >
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-slate-50 rounded-2xl group-hover:scale-110 transition-transform">
-                  {stat.icon}
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{stat.label}</div>
-                  <div className="text-2xl font-bold text-slate-900 tracking-tight">{stat.value}</div>
-                </div>
+              <div className="p-2 rounded-lg bg-white/5 border border-white/5 shrink-0">
+                {stat.icon}
+              </div>
+              <div>
+                <div className="text-base font-bold text-white leading-tight">{stat.value}</div>
+                <div className="text-white/40 text-[9px] font-bold uppercase tracking-wider mt-0.5">{stat.label}</div>
               </div>
             </div>
           ))}
         </div>
 
         {/* List Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-8 mb-2">
-             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Problem Details</div>
-             <div className="flex items-center space-x-8 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                <span className="hidden md:block">Language</span>
-                <span className="hidden md:block">Status</span>
-                <span>Actions</span>
-             </div>
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between px-6 text-[9px] font-bold text-white/30 uppercase tracking-wider mb-1">
+            <div>Problem Details</div>
+            <div className="flex items-center space-x-8">
+              <span className="hidden sm:block">Language</span>
+              <span className="hidden sm:block">Status</span>
+              <span>Actions</span>
+            </div>
           </div>
 
           {filteredSubmissions.length === 0 ? (
-            <div className="text-center py-24 bg-white border border-slate-200 rounded-[2.5rem]">
-               <div className="p-6 bg-slate-50 rounded-full w-fit mx-auto mb-6">
-                 <Code2 size={48} className="text-slate-200" />
-               </div>
-               <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No records found</p>
+            <div className="text-center py-16 bg-[#18181b]/30 rounded-2xl border border-dashed border-white/10">
+              <Code2 size={36} className="mx-auto text-white/10 mb-3" />
+              <p className="text-white/30 font-bold uppercase tracking-wider text-[10px]">No records found</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2.5">
               {filteredSubmissions.map((sub) => (
                 <div
                   key={sub._id}
                   onClick={() => navigate(`/editor/${sub.questionId?._id}`)}
-                  className="bg-white border border-slate-200 p-6 rounded-[2rem] hover:border-indigo-400 transition-all cursor-pointer group shadow-sm flex items-center justify-between"
+                  className="bg-[#18181b]/50 border border-white/5 p-4 rounded-xl hover:border-white/15 transition-all cursor-pointer group shadow-lg shadow-black/20 flex items-center justify-between"
                 >
-                  <div className="flex items-center space-x-6">
-                    <div className={`p-4 rounded-2xl ${sub.status === "Accepted" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-                      {sub.status === "Accepted" ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-2 rounded-lg border shrink-0 ${
+                      sub.status === "Accepted" 
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/10" 
+                        : "bg-rose-500/10 text-rose-400 border-rose-500/10"
+                    }`}>
+                      {sub.status === "Accepted" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">{sub.questionId?.title || "Unknown Problem"}</h3>
-                      <div className="flex items-center space-x-3 text-slate-400 text-xs font-medium mt-1">
-                         <Calendar size={12} />
-                         <span>{new Date(sub.createdAt).toLocaleDateString()}</span>
+                      <h3 className="text-xs font-bold text-white/90 group-hover:text-indigo-400 transition-colors">
+                        {sub.questionId?.title || "Unknown Problem"}
+                      </h3>
+                      <div className="flex items-center space-x-1.5 text-white/40 text-[9px] font-semibold mt-1">
+                        <Calendar size={10} />
+                        <span>{new Date(sub.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-12">
-                    <div className="hidden md:flex items-center space-x-3">
-                       <div className="px-3 py-1 bg-slate-50 rounded-lg text-xs font-bold text-slate-600 border border-slate-100">
-                          {sub.language}
-                       </div>
+                  <div className="flex items-center space-x-8 shrink-0">
+                    <div className="hidden sm:flex items-center">
+                      <div className="px-2 py-0.5 bg-white/5 rounded text-[10px] font-bold text-white/60 border border-white/5">
+                        {sub.language}
+                      </div>
                     </div>
 
-                    <div className={`hidden md:block text-xs font-bold uppercase px-4 py-1.5 rounded-full ${sub.status === "Accepted" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-                       {sub.status}
+                    <div className={`hidden sm:block text-[9px] font-bold uppercase px-2 py-0.5 rounded ${
+                      sub.status === "Accepted" 
+                        ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/10" 
+                        : "text-rose-400 bg-rose-500/10 border border-rose-500/10"
+                    }`}>
+                      {sub.status}
                     </div>
 
-                    <div className="p-2 bg-slate-50 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                       <ChevronRight size={20} />
+                    <div className="p-1.5 bg-white/5 text-white/30 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-all border border-white/5">
+                      <ChevronRight size={14} />
                     </div>
                   </div>
                 </div>
@@ -165,6 +173,5 @@ function Submissions() {
     </div>
   );
 }
-
 
 export default Submissions;

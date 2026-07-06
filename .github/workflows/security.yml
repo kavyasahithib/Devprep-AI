@@ -1,0 +1,50 @@
+name: Security Audit CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  security-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install Backend Dependencies
+      run: |
+        cd backend
+        npm ci
+
+    - name: Run Security Audit Suite
+      env:
+        MONGODB_URI: mongodb://127.0.0.1:27017/devprep_test
+        JWT_SECRET: ci_jwt_secret_value_highly_secure
+        REFRESH_TOKEN_SECRET: ci_refresh_token_secret_value_highly_secure
+        EMAIL_USER: ci_email@example.com
+        EMAIL_PASS: ci_email_pass_123
+        GOOGLE_API_KEY: ci_google_api_key_mock_value
+        GEMINI_API_KEY: ci_google_api_key_mock_value
+      run: |
+        cd backend
+        npm run test:security

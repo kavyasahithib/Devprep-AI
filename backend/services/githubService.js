@@ -10,7 +10,10 @@ exports.syncToGithub = async (user, submission, question) => {
   }
 
   const repoName = "DevPrep-Solutions";
-  const authHeader = { Authorization: `token ${user.githubToken}` };
+  // Decrypt the token prior to using it for API calls
+  const { decrypt } = require("./cryptoService");
+  const decryptedToken = decrypt(user.githubToken);
+  const authHeader = { Authorization: `token ${decryptedToken}` };
 
   try {
     // 1. Check if repo exists, if not create it
@@ -70,7 +73,7 @@ exports.syncToGithub = async (user, submission, question) => {
 exports.getAuthUrl = () => {
   const clientId = process.env.GITHUB_CLIENT_ID;
   const redirectUri = process.env.GITHUB_REDIRECT_URI || "http://localhost:5000/api/users/github/callback";
-  const scope = "repo,user";
+  const scope = "public_repo";
   return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
 };
 

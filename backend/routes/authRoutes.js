@@ -26,12 +26,28 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { session: false, failureRedirect: "http://localhost:3000?error=auth_failed" }),
   async (req, res) => {
-    // Generate tokens for Google user
     const jwt = require("jsonwebtoken");
     const user = req.user;
     
+    // Check if maintenance mode is active
+    const Settings = require("../models/Settings");
+    const settings = await Settings.findOne();
+    let isMaintenanceActive = false;
+    if (settings && settings.maintenanceMode) {
+      const now = new Date();
+      const start = settings.maintenanceStartDate ? new Date(settings.maintenanceStartDate) : null;
+      const end = settings.maintenanceEndDate ? new Date(settings.maintenanceEndDate) : null;
+      if ((!start || now >= start) && (!end || now <= end)) {
+        isMaintenanceActive = true;
+      }
+    }
+
+    if (isMaintenanceActive && user.email.toLowerCase() !== "sailokeshnalabothu@gmail.com") {
+      return res.redirect("http://localhost:3000?error=maintenance_active");
+    }
+    
     const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, email: user.email },
       process.env.JWT_SECRET || "secretkey",
       { expiresIn: "15m" }
     );

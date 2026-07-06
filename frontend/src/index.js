@@ -4,6 +4,14 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+const resizeObserverErrRegex = /^[a-zA-Z0-9\s]*ResizeObserver loop completed with undelivered notifications/;
+window.addEventListener('error', (e) => {
+  if (resizeObserverErrRegex.test(e.message)) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  }
+});
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

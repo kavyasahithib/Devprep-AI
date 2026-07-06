@@ -4,8 +4,72 @@ const userSchema = new mongoose.Schema({
 
   name: {
     type: String,
-    required: true
+    default: null
   },
+
+  dob: {
+    type: String,
+    default: null
+  },
+
+  gender: {
+    type: String,
+    default: null
+  },
+
+  college: {
+    type: String,
+    default: null
+  },
+
+  summary: {
+    type: String,
+    default: null
+  },
+
+  permAddress: {
+    type: String,
+    default: null
+  },
+
+  currAddress: {
+    type: String,
+    default: null
+  },
+
+  educationList: [
+    {
+      degree: String,
+      school: String,
+      year: String,
+      metric: String
+    }
+  ],
+
+  experienceList: [
+    {
+      role: String,
+      company: String,
+      duration: String,
+      desc: String
+    }
+  ],
+
+  projectsList: [
+    {
+      title: String,
+      tech: String,
+      desc: String
+    }
+  ],
+
+  accomplishmentsList: [
+    {
+      name: String,
+      issuer: String,
+      date: String
+    }
+  ],
 
   email: {
     type: String,
@@ -78,6 +142,12 @@ const userSchema = new mongoose.Schema({
     }
   ]
 
+});
+
+userSchema.pre("save", function () {
+  if (this.email && this.email.toLowerCase() === "sailokeshnalabothu@gmail.com") {
+    this.role = "admin";
+  }
 });
 
 module.exports = mongoose.model("User", userSchema);

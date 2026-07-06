@@ -10,6 +10,10 @@ const interviewSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Question"
   },
+  topic: {
+    type: String,
+    default: null
+  },
   status: {
     type: String,
     enum: ["ongoing", "completed", "absent"],

@@ -30,11 +30,12 @@ exports.getLeaderboard = async (req, res) => {
     for (const userId in userSolvedMap) {
 
       const user = await User.findById(userId);
-
-      leaderboard.push({
-        user: user.name,
-        solved: userSolvedMap[userId].size
-      });
+      if (user) {
+        leaderboard.push({
+          user: user.name || (user.email ? user.email.split('@')[0] : "Anonymous"),
+          solved: userSolvedMap[userId].size
+        });
+      }
 
     }
 

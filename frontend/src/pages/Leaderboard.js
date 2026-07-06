@@ -16,7 +16,7 @@ function Leaderboard() {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const res = await API.get("/submissions/leaderboard");
+        const res = await API.get("/leaderboard");
         const sorted = (res.data || []).sort((a,b) => b.solved - a.solved);
         setUsers(sorted);
       } catch (error) {
@@ -30,97 +30,111 @@ function Leaderboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-slate-50">
-        <Loader2 className="animate-spin text-indigo-600" size={48} />
+      <div className="flex items-center justify-center h-full bg-[#090a0f] text-white">
+        <Loader2 className="animate-spin text-indigo-500" size={40} />
       </div>
     );
   }
 
   const getRankIcon = (index) => {
-    if (index === 0) return <Crown className="text-amber-500" size={24} />;
-    if (index === 1) return <Medal className="text-slate-400" size={22} />;
-    if (index === 2) return <Medal className="text-amber-800" size={20} />;
-    return <span className="text-slate-400 font-bold">{index + 1}</span>;
+    if (index === 0) return <Crown className="text-amber-400" size={20} />;
+    if (index === 1) return <Medal className="text-slate-300" size={18} />;
+    if (index === 2) return <Medal className="text-amber-700" size={16} />;
+    return <span className="text-white/30 font-bold text-xs">{index + 1}</span>;
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8 bg-slate-50 min-h-screen text-slate-900 font-sans">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-6 max-w-5xl mx-auto space-y-6 bg-[#090a0f] min-h-screen text-white font-sans relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute top-[-10%] left-[-10%] w-[350px] h-[350px] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900 mb-1 flex items-center gap-3">
-            <Trophy className="text-amber-500" size={36} />
+          <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+            <Trophy className="text-amber-400" size={24} />
             Leaderboard
           </h1>
-          <p className="text-slate-500 font-medium">Rankings of top performing developers on the platform.</p>
+          <p className="text-[11px] text-white/50 font-medium mt-0.5">Rankings of top performing developers on the platform.</p>
         </div>
-        <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-3 shadow-sm">
-            <TrendingUp size={18} className="text-indigo-600" />
-            <span className="text-sm font-bold text-slate-700">Live Updates</span>
+        <div className="bg-[#18181b]/50 border border-white/5 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm shrink-0">
+          <TrendingUp size={14} className="text-indigo-400" />
+          <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">Live Updates</span>
         </div>
       </div>
 
       {/* Top 3 Podium */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 pt-8">
-        {users.slice(0, 3).map((user, i) => (
+      {users.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 relative z-10 mb-8 pt-4">
+          {users.slice(0, 3).map((user, i) => (
             <div 
-                key={i}
-                className={`relative flex flex-col items-center p-10 rounded-3xl border shadow-sm transition-transform hover:scale-[1.02] ${
-                    i === 0 ? 'bg-white border-indigo-200 ring-4 ring-indigo-50 order-1 md:order-2 scale-110 z-10' :
-                    i === 1 ? 'bg-white order-2 md:order-1 mt-4' :
-                    'bg-white order-3 mt-8'
-                }`}
+              key={i}
+              className={`relative flex flex-col items-center p-6 rounded-2xl border shadow-lg transition-all ${
+                i === 0 ? 'bg-[#1b1b24]/60 border-indigo-500/30 ring-2 ring-indigo-500/10 order-1 sm:order-2 sm:scale-105 z-10' :
+                i === 1 ? 'bg-[#18181b]/40 border-white/5 order-2 sm:order-1 sm:mt-4' :
+                'bg-[#18181b]/40 border-white/5 order-3 sm:mt-6'
+              }`}
             >
-                <div className="mb-6 relative">
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center border-2 ${
-                        i === 0 ? 'border-amber-400' : 'border-slate-200'
-                    } bg-slate-50`}>
-                        <User size={32} className="text-slate-300" />
-                    </div>
-                    <div className="absolute -top-2 -right-2 bg-white p-1 rounded-full border border-slate-100 shadow-sm">
-                        {getRankIcon(i)}
-                    </div>
+              <div className="mb-4 relative shrink-0">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 ${
+                  i === 0 ? 'border-amber-400 shadow-lg shadow-amber-400/10' : 'border-white/10'
+                } bg-white/5`}>
+                  <User size={24} className="text-white/30" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-1">{user.user}</h3>
-                <div className="px-4 py-1 bg-indigo-50 rounded-full text-indigo-600 text-xs font-bold">{user.solved} Solved</div>
+                <div className="absolute -top-1.5 -right-1.5 bg-[#18181b] p-1 rounded-full border border-white/10 shadow-md">
+                  {getRankIcon(i)}
+                </div>
+              </div>
+              <h3 className="text-base font-bold text-white mb-1.5 text-center truncate max-w-[150px]">{user.user}</h3>
+              <div className="px-3 py-0.5 bg-indigo-500/10 border border-indigo-500/10 rounded-full text-indigo-400 text-[10px] font-bold">
+                {user.solved} Solved
+              </div>
             </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Full Leaderboard List */}
-      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-        <div className="grid grid-cols-12 px-8 py-4 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-            <div className="col-span-2">Rank</div>
-            <div className="col-span-6">Developer</div>
-            <div className="col-span-4 text-right">Problems Solved</div>
+      <div className="bg-[#18181b]/50 border border-white/5 rounded-2xl overflow-hidden shadow-lg shadow-black/25 relative z-10">
+        <div className="grid grid-cols-12 px-6 py-3 bg-white/[0.02] text-[9px] font-bold text-white/35 uppercase tracking-wider border-b border-white/5">
+          <div className="col-span-2">Rank</div>
+          <div className="col-span-7">Developer</div>
+          <div className="col-span-3 text-right">Solved</div>
         </div>
         
-        <div className="divide-y divide-slate-100">
-            {users.map((user, index) => (
-                <div 
-                    key={index}
-                    className="grid grid-cols-12 px-8 py-5 items-center hover:bg-slate-50 transition-colors group"
-                >
-                    <div className="col-span-2">
-                        <span className={`text-sm font-bold ${index < 3 ? 'text-indigo-600' : 'text-slate-400'}`}>
-                            #{index + 1}
-                        </span>
-                    </div>
-                    <div className="col-span-6 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
-                            <User size={18} className="text-slate-400" />
-                        </div>
-                        <span className="text-base font-bold text-slate-900">{user.user}</span>
-                    </div>
-                    <div className="col-span-4 text-right">
-                        <span className="text-lg font-bold text-slate-900">{user.solved}</span>
-                    </div>
+        <div className="divide-y divide-white/5">
+          {users.map((user, index) => (
+            <div 
+              key={index}
+              className="grid grid-cols-12 px-6 py-4 items-center hover:bg-white/[0.02] transition-colors group"
+            >
+              <div className="col-span-2">
+                <span className={`text-xs font-bold ${index < 3 ? 'text-indigo-400 font-extrabold' : 'text-white/40'}`}>
+                  #{index + 1}
+                </span>
+              </div>
+              <div className="col-span-7 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                  <User size={16} className="text-white/30" />
                 </div>
-            ))}
+                <span className="text-xs font-bold text-white/95 truncate max-w-[200px]">{user.user}</span>
+              </div>
+              <div className="col-span-3 text-right">
+                <span className="text-sm font-bold text-white/90">{user.solved}</span>
+              </div>
+            </div>
+          ))}
+
+          {users.length === 0 && (
+            <div className="text-center py-10 text-white/20 text-xs">
+              No developers on the leaderboard yet.
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
 
 export default Leaderboard;
